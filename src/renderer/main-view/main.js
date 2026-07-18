@@ -931,7 +931,7 @@ Object.assign(TMS_AL.ScreenMain, {
 			const appId = rowEl.getAttribute('data-app-id') ?? '';
 			const app   = appsById.get(appId);
 
-			if (!app || !TMS_AL.Search.Matches(app.name, query)) {
+			if (!app || !TMS_AL.Search.MatchesApp(app.name, app.path, query)) {
 				return;
 			}
 
@@ -942,7 +942,7 @@ Object.assign(TMS_AL.ScreenMain, {
 				label  : `${group?.name ?? TMS_AL_COMMON.Const.UNCATEGORIZED_NAME}：${app.name}`,
 			};
 
-			if (TMS_AL.Search.Contains(app.name, query)) {
+			if (TMS_AL.Search.ContainsApp(app.name, app.path, query)) {
 				partial.push(item);
 			} else {
 				other.push(item);

@@ -17,6 +17,7 @@
 		"icon:build": "pwsh scripts/build-icon.ps1",
 		"lint": "eslint . && npm run format:renderer:check",
 		"lint:fix": "eslint . --fix && npm run format:renderer",
+		"lint:fix:src": "eslint src --fix && npm run format:renderer",
 		"format:renderer": "node scripts/format-renderer-assets.mjs",
 		"format:renderer:check": "node scripts/format-renderer-assets.mjs --check",
 		"test:search": "node scripts/test-search.mjs",

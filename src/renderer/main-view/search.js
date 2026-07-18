@@ -32,6 +32,38 @@ Object.assign(TMS_AL, {
 		},
 
 		/**
+		 * 実行パスから検索対象にするファイル名を取得する
+		 * @param {string} filePath 実行パス
+		 * @returns {string} ファイル名
+		 */
+		GetPathFileName: function (filePath) {
+			const trimmedPath    = String(filePath ?? '')
+				.trim()
+				.replace(/^"+|"+$/gu, '');
+			const normalizedPath = trimmedPath.replace(/[\\/]+$/gu, '');
+
+			if (!normalizedPath) {
+				return '';
+			}
+
+			return normalizedPath.split(/[\\/]/u).pop() ?? '';
+		},
+
+		/**
+		 * アプリ名または実行パスのファイル名に検索文字列が部分一致するか判定する
+		 * @param {string} appName アプリ名
+		 * @param {string} appPath 実行パス
+		 * @param {string} query 検索文字列
+		 * @returns {boolean} 部分一致時true
+		 */
+		ContainsApp: function (appName, appPath, query) {
+			const pathFileName = TMS_AL.Search.GetPathFileName(appPath);
+
+			return TMS_AL.Search.Contains(appName, query)
+				|| TMS_AL.Search.Contains(pathFileName, query);
+		},
+
+		/**
 		 * 部分一致グループとそれ以外を結合し、必要なら仕切りを挿入する
 		 * @param {object[]} partialItems 部分一致の検索結果（DOM順）
 		 * @param {object[]} otherItems 部分一致以外の検索結果（DOM順）
@@ -78,6 +110,20 @@ Object.assign(TMS_AL, {
 			}
 
 			return true;
+		},
+
+		/**
+		 * 各文字が必要数だけアプリ名または実行パスのファイル名に含まれるか判定する
+		 * @param {string} appName アプリ名
+		 * @param {string} appPath 実行パス
+		 * @param {string} query 検索文字列
+		 * @returns {boolean} 一致時true
+		 */
+		MatchesApp: function (appName, appPath, query) {
+			const pathFileName = TMS_AL.Search.GetPathFileName(appPath);
+
+			return TMS_AL.Search.Matches(appName, query)
+				|| TMS_AL.Search.Matches(pathFileName, query);
 		},
 	},
 });

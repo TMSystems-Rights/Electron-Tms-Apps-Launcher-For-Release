@@ -13,7 +13,15 @@ const context = { TMS_AL: {} };
 
 vm.runInNewContext(source, context, { filename: 'search.js' });
 
-const { Normalize, Contains, Matches, MergeSearchGroups } = context.TMS_AL.Search;
+const {
+	Normalize,
+	Contains,
+	ContainsApp,
+	GetPathFileName,
+	Matches,
+	MatchesApp,
+	MergeSearchGroups,
+} = context.TMS_AL.Search;
 
 assert.equal(Normalize(' Ａ b　C '), 'abc');
 assert.equal(Matches('abc', 'ab'), true);
@@ -33,6 +41,19 @@ assert.equal(Contains('TAME Sort Utility', 'teams'), false);
 assert.equal(Matches('TAME Sort Utility', 'teams'), true);
 assert.equal(Contains('Visual Studio Code', 'v c s'), false);
 assert.equal(Contains('anything', '   '), false);
+
+assert.equal(GetPathFileName('C:\\Program Files\\Microsoft VS Code\\Code.exe'), 'Code.exe');
+assert.equal(GetPathFileName('C:/Tools/ms-teams.exe'), 'ms-teams.exe');
+assert.equal(GetPathFileName('"C:\\Tools\\quoted-app.exe"'), 'quoted-app.exe');
+assert.equal(GetPathFileName('C:\\Tools\\Trailing\\'), 'Trailing');
+
+assert.equal(MatchesApp('Launch Helper', 'C:\\Program Files\\Microsoft VS Code\\Code.exe', 'code'), true);
+assert.equal(MatchesApp('Launch Helper', 'C:\\Tools\\TAME Sort Utility.exe', 'teams'), true);
+assert.equal(MatchesApp('Launch Helper', 'C:\\Tools\\Other.exe', 'teams'), false);
+assert.equal(MatchesApp('anything', 'C:\\Tools\\anything.exe', '   '), false);
+assert.equal(ContainsApp('Launch Helper', 'C:\\Program Files\\Microsoft VS Code\\Code.exe', 'code.exe'), true);
+assert.equal(ContainsApp('Launch Helper', 'C:\\Tools\\ms-teams.exe', 'teams'), true);
+assert.equal(ContainsApp('Launch Helper', 'C:\\Tools\\TAME Sort Utility.exe', 'teams'), false);
 
 const partialA = [{ appId: 'a-teams', groupId: 'g1', label: 'MS365：Microsoft Teams' }];
 const partialB = [{ appId: 'a-short', groupId: 'g1', label: 'MS365：ms-teams' }];
