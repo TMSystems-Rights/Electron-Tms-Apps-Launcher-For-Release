@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:;" />
+		<title>TMS-AppsLauncher</title>
+		<link rel="stylesheet" href="styles/base.css" />
+		<link rel="stylesheet" href="styles/theme.css" />
+		<link rel="stylesheet" href="styles/main-view.css" />
+		<link rel="stylesheet" href="styles/modal.css" />
+	</head>
+	<body class="tms-al-body tms-al-window-focused">
+		<div id="tmsAlApp" class="tms-al-app">
+			<header id="tmsAlHeader" class="tms-al-header">
+				<div class="tms-al-header__drag">
+					<h1 id="tmsAlTitle" class="tms-al-header__title">TMS-AppsLauncher</h1>
+				</div>
+				<button id="tmsAlBtnSettings" class="tms-al-btn tms-al-btn--icon" type="button" title="設定" aria-label="設定">⚙ 設定</button>
+			</header>
+
+			<main id="tmsAlMain" class="tms-al-main">
+				<div id="tmsAlToolbar" class="tms-al-toolbar">
+					<button id="tmsAlBtnAddGroup" class="tms-al-btn tms-al-btn--secondary tms-al-toolbar__add-group" type="button">＋ グループ</button>
+					<div class="tms-al-search">
+						<input id="tmsAlSearchInput" class="tms-al-search__input" type="search" placeholder="アプリを検索" autocomplete="off" aria-label="アプリを検索" aria-autocomplete="list" aria-controls="tmsAlSearchResults" aria-expanded="false" />
+						<div id="tmsAlSearchResults" class="tms-al-search__results" role="listbox" aria-label="検索結果" hidden></div>
+					</div>
+					<button id="tmsAlBtnCollapseAll" class="tms-al-btn tms-al-btn--secondary" type="button">すべて折りたたむ</button>
+					<button id="tmsAlBtnExpandAll" class="tms-al-btn tms-al-btn--secondary" type="button">すべて展開</button>
+				</div>
+
+				<div id="tmsAlPaneContainer" class="tms-al-pane-container">
+					<div id="tmsAlGroupListLeft" class="tms-al-group-list tms-al-pane" data-pane="left" role="list"></div>
+					<div id="tmsAlGroupListCenter" class="tms-al-group-list tms-al-pane" data-pane="center" role="list" hidden></div>
+					<div id="tmsAlGroupListRight" class="tms-al-group-list tms-al-pane" data-pane="right" role="list" hidden></div>
+				</div>
+				<p id="tmsAlEmptyMessage" class="tms-al-empty-message" hidden>アプリが登録されていません。「＋ 追加」から登録してください。</p>
+
+				<div id="tmsAlAddRow" class="tms-al-add-row">
+					<button id="tmsAlBtnAdd" class="tms-al-btn tms-al-btn--primary" type="button">＋ 追加</button>
+				</div>
+			</main>
+
+			<footer id="tmsAlFooter" class="tms-al-footer">
+				<span id="tmsAlCopyright" class="tms-al-footer__copyright">© 2026 TMSystems. All rights reserved.</span>
+				<span id="tmsAlVersion" class="tms-al-footer__version">v1.0.0</span>
+			</footer>
+		</div>
+
+		<!-- 登録・編集モーダル -->
+		<div id="tmsAlModalEdit" class="tms-al-modal" hidden>
+			<div id="tmsAlModalEditBackdrop" class="tms-al-modal__backdrop"></div>
+			<div class="tms-al-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="tmsAlModalEditTitle">
+				<h2 id="tmsAlModalEditTitle" class="tms-al-modal__title">アプリを追加</h2>
+
+				<div class="tms-al-form-row">
+					<span class="tms-al-form-row__label">アイコン</span>
+					<div class="tms-al-icon-preview">
+						<span class="tms-al-icon-preview__wrap">
+							<img id="tmsAlEditIconPreview" class="tms-al-icon-preview__img" alt="" hidden />
+							<span id="tmsAlEditIconFallback" class="tms-al-icon-preview__fallback">📄</span>
+						</span>
+						<div>
+							<button id="tmsAlBtnEditIconCustom" class="tms-al-btn tms-al-btn--small" type="button">画像を選択</button>
+							<button id="tmsAlBtnEditIconAuto" class="tms-al-btn tms-al-btn--small" type="button">自動抽出に戻す</button>
+						</div>
+					</div>
+				</div>
+
+				<div class="tms-al-form-row">
+					<label class="tms-al-form-row__label" for="tmsAlEditAppName">アプリ名</label>
+					<input id="tmsAlEditAppName" class="tms-al-form-row__input" type="text" autocomplete="off" />
+				</div>
+
+				<div class="tms-al-form-row">
+					<label class="tms-al-form-row__label" for="tmsAlEditAppPath">実行パス</label>
+					<div class="tms-al-form-row__path-row">
+						<input id="tmsAlEditAppPath" class="tms-al-form-row__input" type="text" autocomplete="off" title="エクスプローラからファイルをドラッグ＆ドロップできます" />
+						<button id="tmsAlBtnEditBrowsePath" class="tms-al-btn tms-al-btn--small" type="button">参照</button>
+					</div>
+					<p id="tmsAlEditPathWarn" class="tms-al-form-row__warn" hidden>指定されたパスが存在しないか、非対応の拡張子です。</p>
+				</div>
+
+				<div class="tms-al-form-row">
+					<label class="tms-al-form-row__label" for="tmsAlEditGroupId">所属グループ</label>
+					<select id="tmsAlEditGroupId" class="tms-al-form-row__select"></select>
+				</div>
+
+				<div class="tms-al-modal__actions">
+					<button id="tmsAlBtnEditCancel" class="tms-al-btn" type="button">キャンセル</button>
+					<button id="tmsAlBtnEditSave" class="tms-al-btn tms-al-btn--primary" type="button">保存</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- 設定モーダル -->
+		<div id="tmsAlModalSettings" class="tms-al-modal" hidden>
+			<div id="tmsAlModalSettingsBackdrop" class="tms-al-modal__backdrop"></div>
+			<div class="tms-al-modal__dialog tms-al-modal__dialog--settings" role="dialog" aria-modal="true" aria-labelledby="tmsAlModalSettingsTitle">
+				<h2 id="tmsAlModalSettingsTitle" class="tms-al-modal__title">設定</h2>
+
+				<div class="tms-al-form-row">
+					<label class="tms-al-form-row__label" for="tmsAlSettingsPaneCount">ペイン数</label>
+					<div class="tms-al-form-row__control-row">
+						<select id="tmsAlSettingsPaneCount" class="tms-al-form-row__select">
+							<option value="1">1ペイン</option>
+							<option value="2">2ペイン</option>
+							<option value="3">3ペイン</option>
+						</select>
+						<button class="tms-al-btn tms-al-btn--small" type="button" data-settings-reset="paneCount">リセット</button>
+					</div>
+				</div>
+
+				<div id="tmsAlSettingsUncategorizedPaneSection" class="tms-al-form-row" hidden>
+					<label class="tms-al-form-row__label" for="tmsAlSettingsUncategorizedPane">未分類グループの表示位置</label>
+					<div class="tms-al-form-row__control-row">
+						<select id="tmsAlSettingsUncategorizedPane" class="tms-al-form-row__select">
+							<option value="left">左ペイン</option>
+							<option value="center" data-pane-option="center" hidden>中央ペイン</option>
+							<option value="right">右ペイン</option>
+						</select>
+						<button class="tms-al-btn tms-al-btn--small" type="button" data-settings-reset="uncategorizedPane">リセット</button>
+					</div>
+				</div>
+
+				<div class="tms-al-form-row">
+					<label class="tms-al-form-row__label" for="tmsAlSettingsToggleInitial">グループ初期表示</label>
+					<div class="tms-al-form-row__control-row">
+						<select id="tmsAlSettingsToggleInitial" class="tms-al-form-row__select">
+							<option value="expandAll">すべて展開</option>
+							<option value="collapseAll">すべて折りたたむ</option>
+						</select>
+						<button class="tms-al-btn tms-al-btn--small" type="button" data-settings-reset="toggleInitialState">リセット</button>
+					</div>
+				</div>
+
+				<div class="tms-al-form-row">
+					<div class="tms-al-settings__toggle-row">
+						<span class="tms-al-form-row__label tms-al-settings__toggle-label">次回起動時に現在表示中のサイズで表示する</span>
+						<label class="tms-al-toggle" for="tmsAlSettingsRememberWindowSize">
+							<input id="tmsAlSettingsRememberWindowSize" class="tms-al-toggle__input" type="checkbox" />
+							<span class="tms-al-toggle__track"></span>
+						</label>
+					</div>
+				</div>
+
+				<div id="tmsAlSettingsWindowSizeSection" class="tms-al-form-row" hidden>
+					<span class="tms-al-form-row__label">ウィンドウサイズ</span>
+					<div class="tms-al-settings__window-block">
+						<div class="tms-al-form-row__control-row">
+							<div class="tms-al-settings__window-size">
+								<label class="tms-al-settings__inline-label" for="tmsAlSettingsWindowWidth">幅</label>
+								<input id="tmsAlSettingsWindowWidth" class="tms-al-form-row__input tms-al-settings__number" type="number" min="360" step="1" />
+								<label class="tms-al-settings__inline-label" for="tmsAlSettingsWindowHeight">高さ</label>
+								<input id="tmsAlSettingsWindowHeight" class="tms-al-form-row__input tms-al-settings__number" type="number" min="480" step="1" />
+							</div>
+							<button class="tms-al-btn tms-al-btn--small" type="button" data-settings-reset="window">リセット</button>
+						</div>
+						<button id="tmsAlBtnSettingsUseCurrentSize" class="tms-al-btn tms-al-btn--small tms-al-settings__use-current-size" type="button">現在表示中のサイズに設定</button>
+					</div>
+				</div>
+
+				<div class="tms-al-form-row">
+					<label class="tms-al-form-row__label" for="tmsAlSettingsAppearance">外観テーマ</label>
+					<div class="tms-al-form-row__control-row">
+						<select id="tmsAlSettingsAppearance" class="tms-al-form-row__select">
+							<option value="system">システムに従う</option>
+							<option value="dark">ダーク</option>
+							<option value="light">ライト</option>
+						</select>
+						<button class="tms-al-btn tms-al-btn--small" type="button" data-settings-reset="appearance">リセット</button>
+					</div>
+				</div>
+
+				<div class="tms-al-form-row">
+					<label class="tms-al-form-row__label" for="tmsAlSettingsLaunchBehavior">起動後の挙動</label>
+					<div class="tms-al-form-row__control-row">
+						<select id="tmsAlSettingsLaunchBehavior" class="tms-al-form-row__select">
+							<option value="stay">そのまま</option>
+							<option value="minimize">最小化</option>
+							<option value="close">閉じる</option>
+						</select>
+						<button class="tms-al-btn tms-al-btn--small" type="button" data-settings-reset="launchBehavior">リセット</button>
+					</div>
+				</div>
+
+				<div class="tms-al-form-row">
+					<label class="tms-al-form-row__label" for="tmsAlSettingsDataDir">データ保存先</label>
+					<div class="tms-al-form-row__path-row">
+						<input id="tmsAlSettingsDataDir" class="tms-al-form-row__input" type="text" autocomplete="off" spellcheck="false" />
+						<button id="tmsAlBtnSettingsBrowseDataDir" class="tms-al-btn tms-al-btn--small" type="button">参照</button>
+						<button class="tms-al-btn tms-al-btn--small" type="button" data-settings-reset="dataDir">リセット</button>
+					</div>
+				</div>
+
+				<div class="tms-al-form-row">
+					<span class="tms-al-form-row__label">アプリの更新</span>
+					<div class="tms-al-form-row__control-row">
+						<button id="tmsAlBtnSettingsCheckUpdate" class="tms-al-btn tms-al-btn--small" type="button">更新を確認</button>
+					</div>
+				</div>
+
+				<div class="tms-al-modal__actions tms-al-modal__actions--settings">
+					<button id="tmsAlBtnSettingsResetAll" class="tms-al-btn tms-al-btn--secondary" type="button">すべてリセット</button>
+					<button id="tmsAlBtnSettingsClose" class="tms-al-btn tms-al-btn--primary" type="button">閉じる</button>
+				</div>
+			</div>
+		</div>
+
+		<div id="tmsAlToastContainer" class="tms-al-toast-container" aria-live="polite"></div>
+
+		<!-- テキスト入力プロンプト（Electron では window.prompt 非対応のため自前実装） -->
+		<div id="tmsAlPromptModal" class="tms-al-modal" hidden>
+			<div id="tmsAlPromptBackdrop" class="tms-al-modal__backdrop"></div>
+			<div class="tms-al-modal__dialog tms-al-modal__dialog--prompt" role="dialog" aria-modal="true" aria-labelledby="tmsAlPromptMessage">
+				<p id="tmsAlPromptMessage" class="tms-al-prompt__message"></p>
+				<input id="tmsAlPromptInput" class="tms-al-form-row__input" type="text" autocomplete="off" />
+				<div class="tms-al-modal__actions">
+					<button id="tmsAlBtnPromptCancel" class="tms-al-btn" type="button">キャンセル</button>
+					<button id="tmsAlBtnPromptOk" class="tms-al-btn tms-al-btn--primary" type="button">OK</button>
+				</div>
+			</div>
+		</div>
+
+		<script src="common/tms_common.js"></script>
+		<script src="modal-edit/edit.js"></script>
+		<script src="modal-settings/settings.js"></script>
+		<script src="main-view/search.js"></script>
+		<script src="main-view/main.js"></script>
+	</body>
+</html>

@@ -1,0 +1,228 @@
+/* メイン画面: グループ・アプリ行 */
+
+.tms-al-group {
+	margin-bottom: 8px;
+	background-color: var(--tms-al-color-surface);
+	border: 1px solid var(--tms-al-color-border);
+	border-radius: var(--tms-al-radius);
+	overflow: hidden;
+}
+
+.tms-al-group__header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 10px;
+	background-color: var(--tms-al-color-bg);
+	border-bottom: 1px solid transparent;
+	cursor: pointer;
+	user-select: none;
+}
+
+.tms-al-group--expanded .tms-al-group__header {
+	border-bottom-color: var(--tms-al-color-border);
+}
+
+.tms-al-group__toggle-icon {
+	flex-shrink: 0;
+	width: 16px;
+	font-size: 11px;
+	color: var(--tms-al-color-text-muted);
+	text-align: center;
+}
+
+.tms-al-group__name {
+	flex: 1;
+	font-weight: 600;
+	font-size: 13px;
+}
+
+.tms-al-group__count {
+	font-size: 11px;
+	color: var(--tms-al-color-text-muted);
+}
+
+.tms-al-group__actions {
+	display: flex;
+	gap: 4px;
+}
+
+.tms-al-group__apps {
+	display: none;
+	padding: 4px 0;
+	min-height: 4px;
+}
+
+.tms-al-group--expanded .tms-al-group__apps {
+	display: block;
+}
+
+.tms-al-app-row {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px 6px 28px;
+	border-bottom: 1px solid var(--tms-al-color-border);
+}
+
+.tms-al-app-row--running {
+	background-color: var(--tms-al-color-running-bg);
+	box-shadow: inset 3px 0 0 var(--tms-al-color-running);
+}
+
+.tms-al-app-row--search-preview {
+	background-color: var(--tms-al-color-preview-bg);
+	box-shadow: inset 3px 0 0 var(--tms-al-color-preview);
+}
+
+.tms-al-app-row__running-state {
+	flex-shrink: 0;
+	width: 8px;
+	height: 8px;
+	background-color: var(--tms-al-color-running);
+	border-radius: 50%;
+}
+
+.tms-al-app-row:last-child {
+	border-bottom: none;
+}
+
+.tms-al-app-row--dragging,
+.tms-al-group--dragging {
+	opacity: 0.85;
+	background-color: var(--tms-al-color-bg);
+	pointer-events: none;
+}
+
+body.tms-al-body--dragging {
+	cursor: grabbing;
+	user-select: none;
+}
+
+.tms-al-app-row__drag {
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 24px;
+	min-height: 24px;
+	width: 24px;
+	font-size: 12px;
+	color: var(--tms-al-color-text-muted);
+	cursor: grab;
+	text-align: center;
+	touch-action: none;
+}
+
+.tms-al-app-row__drag:active {
+	cursor: grabbing;
+}
+
+.tms-al-group__drag-handle {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 24px;
+	min-height: 24px;
+	cursor: grab;
+	touch-action: none;
+}
+
+.tms-al-group__drag-handle:active {
+	cursor: grabbing;
+}
+
+.tms-al-app-row__icon-wrap {
+	position: relative;
+	flex-shrink: 0;
+	width: 24px;
+	height: 24px;
+}
+
+.tms-al-app-row__icon {
+	flex-shrink: 0;
+	width: 24px;
+	height: 24px;
+	object-fit: contain;
+}
+
+.tms-al-app-row__icon-wrap .tms-al-app-row__icon,
+.tms-al-app-row__icon-wrap .tms-al-app-row__icon--fallback {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.tms-al-app-row__icon--fallback {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	font-size: 14px;
+	background-color: var(--tms-al-color-bg);
+	border: 1px solid var(--tms-al-color-border);
+	border-radius: 4px;
+}
+
+.tms-al-app-row__name {
+	flex: 1 1 0;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.tms-al-app-row__name-link {
+	color: var(--tms-al-color-primary);
+	text-decoration: none;
+	cursor: pointer;
+}
+
+.tms-al-app-row__name-link:hover {
+	text-decoration: underline;
+}
+
+.tms-al-app-row__path {
+	flex: 0 1 auto;
+	max-width: 110px;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 12px;
+	color: var(--tms-al-color-text-muted);
+}
+
+.tms-al-app-row__warn {
+	flex-shrink: 0;
+	color: #d97706;
+	font-size: 14px;
+}
+
+.tms-al-app-row__actions {
+	display: flex;
+	flex-shrink: 0;
+	gap: 4px;
+}
+
+.tms-al-btn--small {
+	padding: 3px 8px;
+	font-size: 11px;
+}
+
+.tms-al-btn--danger {
+	color: var(--tms-al-color-danger);
+	border-color: var(--tms-al-color-danger);
+}
+
+.tms-al-btn--danger:hover {
+	color: #ffffff;
+	background-color: var(--tms-al-color-danger);
+}
+
+.tms-al-toolbar__add-group {
+	margin-right: auto;
+}

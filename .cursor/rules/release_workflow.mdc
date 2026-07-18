@@ -1,0 +1,162 @@
+---
+alwaysApply: true
+---
+
+# リリース手順（必須順序）
+
+このリポジトリでは、GitHub Release 公開は **commit / push 後**に行う。
+
+自動更新用の `latest.yml` とインストーラのハッシュを必ず一致させるため、原則として **`npm run dist` でローカル成果物を一式生成し、`gh release create/upload` で公開する**。
+
+`npm run dist:publish` は GitHub Release 作成と複数 asset アップロードが途中で競合し、`setup.exe` だけが公開されるなどの部分公開になることがあるため、通常のリリース手順では使わない。
+
+## 正しい順序
+
+1. `package.json` の `version` を更新する
+2. `npm run dev` 等で動作確認する
+3. `npm run build` / `npm run lint` / `npm run test` 等で検証する
+4. **git commit --trailer "Co-authored-by: Cursor <cursoragent@cursor.com>"**（バージョン更新と変更をすべて含める）
+5. **git push origin main**
+6. `git status` が clean で、`HEAD` と `origin/main` が一致していることを確認する
+7. **`npm run dist`** でローカル成果物を生成する
+8. GitHub Release に同一ビルドの成果物 3 点を公開する
+9. **タグの一致を確認する**（下記「公開後の確認」）
+
+## dist 前の確認
+
+- `git status` が clean（未コミットの version 変更がない）
+- `git rev-parse HEAD` と `git rev-parse origin/main` が一致している
+- **コミット済み**の `package.json` の `version` が今回のリリース番号と一致している
+    - ローカルだけ version を上げて未コミットのままビルドすると、インストーラ内容と Release タグの対応がずれる
+- `electron-builder.yml` の `publish` が public 配布リポジトリ `TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release` を指している
+    - public リポジトリ向けのため `publish.private` と `publish.token` は設定しない
+- `gh` が public 配布リポジトリへ Release 作成 / asset 置換できる認証状態になっている
+    - `gh` の認証情報は Release 操作用であり、インストーラへ埋め込まない
+
+## 必須成果物
+
+`npm run dist` 後、`release/<version>/` に次の 3 点があることを確認する。
+
+- `TmsAppLauncher-<version>-setup.exe`
+- `TmsAppLauncher-<version>-setup.exe.blockmap`
+- `latest.yml`
+
+`latest.yml` は同じ `npm run dist` で生成された `setup.exe` の `sha512` と `size` を持つ。`npm run dist` を再実行した場合は、**必ず setup.exe / blockmap / latest.yml の 3 点を同じ実行結果でまとめて公開し直す**。
+
+## GitHub Release 公開
+
+PowerShell 例:
+
+```powershell
+$version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+$tag = "v$version"
+$repo = "TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release"
+$releaseDir = "release\$version"
+
+gh release view $tag --repo $repo *> $null
+if ($LASTEXITCODE -eq 0) {
+	gh release upload $tag `
+		"$releaseDir\TmsAppLauncher-$version-setup.exe" `
+		"$releaseDir\TmsAppLauncher-$version-setup.exe.blockmap" `
+		"$releaseDir\latest.yml" `
+		--repo $repo `
+		--clobber
+} else {
+	gh release create $tag `
+		"$releaseDir\TmsAppLauncher-$version-setup.exe" `
+		"$releaseDir\TmsAppLauncher-$version-setup.exe.blockmap" `
+		"$releaseDir\latest.yml" `
+		--repo $repo `
+		--title $tag `
+		--notes "TMS-AppsLauncher $tag"
+}
+```
+
+公開後、GitHub Release の assets に次の 3 点が揃っていることを確認する。
+
+```powershell
+gh release view $tag --repo $repo --json assets,url,tagName
+```
+
+`GITHUB_RELEASE_TOKEN` など別名の環境変数を一時的に `GH_TOKEN` へ割り当てて `gh` を実行した場合は、Release 作業完了後に必ず次を実行するか、ターミナルを閉じる。private リポジトリ向けの読み取り専用 `GH_TOKEN` と混線させない。
+
+```powershell
+Remove-Item Env:GH_TOKEN
+```
+
+## 公開後の確認（必須）
+
+Release 作成後、public 配布リポジトリ側の Release と assets を確認する。ソース管理リポジトリと配布リポジトリを分ける場合、ソース側の `origin/main` と public Release repo のタグ SHA は一致しないことがある。
+
+```powershell
+gh release view v<version> `
+	--repo TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release `
+	--json assets,url,tagName
+```
+
+- **確認すべきこと**: Release に setup.exe / blockmap / latest.yml の 3 点が揃っている
+- **確認すべきこと**: `latest.yml` の `sha512` と `size` が同じビルドで生成した `setup.exe` と対応している
+- **注意**: public 配布リポジトリにソースコミットを mirror しない場合、Release の tag は配布リポジトリ側の tag として扱う
+
+### タグ不一致が起きる仕組み
+
+リリース作成時の `--target` が意図したコミットと違う、または未コミット状態からビルド / 公開すると、タグと成果物の対応がずれる。
+
+public 配布リポジトリに private 側の commit SHA が存在しない場合、その SHA を `gh release create --target` に渡さない。
+
+`electron-builder --publish always` を使った場合は、ローカルで `git tag -f v<version>` することがあり、リモートに同名タグが別 SHA で既にあるとローカルタグだけが進む。次回の `git pull --tags` で `would clobber existing tag` になる。
+
+## `dist:publish` が途中失敗した場合
+
+`dist:publish` で 422 `already_exists` などが出ると、Release / tag / assets の一部だけが作られていることがある。
+
+この場合は次の方針で復旧する。
+
+1. `git status` が clean で、`HEAD` と `origin/main` が一致していることを確認する
+2. `gh release view v<version> --repo TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release --json assets,url,tagName` で Release 状態を確認する
+3. `npm run dist` を実行し、`release/<version>/` に setup.exe / blockmap / latest.yml を同一ビルドで生成し直す
+4. `gh release upload v<version> ... --clobber` で 3 点をまとめて上書きする
+5. `gh release view v<version> --repo TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release --json assets,url,tagName` で 3 点が揃っていることを確認する
+
+部分公開のまま終了してはいけない。特に `latest.yml` が無い、または `latest.yml` の `sha512` が公開済み `setup.exe` と違う状態では自動更新が壊れる。
+
+## 禁止・注意
+
+- **push 前に `npm run dist` / `npm run dist:publish` を実行しない**
+    - 未コミットの作業ツリーからビルドすると、インストーラは新内容でも Git タグが古いコミットを指し、ソースと Release の対応がずれる
+    - タグの付け直し（`git tag -f` / `git push -f`）が必要になる
+- `npm run dist:publish` を通常手順として使わない
+    - 使ってしまった場合は、上記「`dist:publish` が途中失敗した場合」に従い、assets 3 点とタグを検証する
+- `electron-builder.yml` に `publish.private` や `publish.token` を戻さない
+    - public 配布では GitHub token をインストーラへ埋め込まない
+- `gh release upload --clobber` は public 配布リポジトリへの書き込み権限を持つ認証で実行する
+- バージョンを上げない軽微な修正（README・設計ドキュメント等）では Release 公開は不要（commit → push だけでよい）
+
+## コマンド例
+
+```powershell
+git add .
+git commit --trailer "Co-authored-by: Cursor <cursoragent@cursor.com>" -m "v1.x.x で〇〇を追加する"
+git push origin main
+
+git status --short --branch
+git rev-parse HEAD
+git rev-parse origin/main
+
+npm run dist
+
+$version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+$tag = "v$version"
+$repo = "TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release"
+$releaseDir = "release\$version"
+
+gh release create $tag `
+	"$releaseDir\TmsAppLauncher-$version-setup.exe" `
+	"$releaseDir\TmsAppLauncher-$version-setup.exe.blockmap" `
+	"$releaseDir\latest.yml" `
+	--repo $repo `
+	--title $tag `
+	--notes "TMS-AppsLauncher $tag"
+
+gh release view $tag --repo $repo --json assets,url,tagName
+```

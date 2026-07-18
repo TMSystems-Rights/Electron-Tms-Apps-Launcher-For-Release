@@ -1,0 +1,61 @@
+{
+	"name": "tms-app-launcher",
+	"version": "1.6.5",
+	"description": "起動アプリをグループ分け整理し表示するアプリ起動ランチャー",
+	"main": "dist/main/main.js",
+	"scripts": {
+		"build:ts": "tsc -p tsconfig.json",
+		"copy:renderer": "copyfiles -u 2 \"src/renderer/**/*\" dist/renderer",
+		"copy:vendor": "copyfiles -f node_modules/sortablejs/Sortable.min.js dist/renderer/vendor",
+		"build": "npm run build:ts && npm run copy:renderer && npm run copy:vendor",
+		"start": "npm run build && electron .",
+		"dev": "npm run build && electron .",
+		"predist": "pwsh -NoProfile -File scripts/ensure-dist-ready.ps1",
+		"predist:publish": "pwsh -NoProfile -File scripts/ensure-dist-ready.ps1",
+		"dist": "npm run build && electron-builder",
+		"dist:publish": "npm run build && electron-builder --publish always",
+		"icon:build": "pwsh scripts/build-icon.ps1",
+		"lint": "eslint . && npm run format:renderer:check",
+		"lint:fix": "eslint . --fix && npm run format:renderer",
+		"format:renderer": "node scripts/format-renderer-assets.mjs",
+		"format:renderer:check": "node scripts/format-renderer-assets.mjs --check",
+		"test:search": "node scripts/test-search.mjs",
+		"test:running-apps": "npm run build:ts && node scripts/test-running-apps.mjs",
+		"test:icon-cache": "npm run build:ts && node scripts/run-electron-test.mjs scripts/test-icon-cache.mjs",
+		"test:update-error": "npm run build:ts && node scripts/test-update-error.mjs",
+		"test:row-drag": "npm run build && node scripts/run-electron-test.mjs scripts/test-row-drag.mjs",
+		"test:ui": "npm run build && node scripts/run-electron-test.mjs scripts/test-ui.mjs",
+		"test": "npm run test:search && npm run test:running-apps && npm run test:icon-cache && npm run test:update-error && npm run test:row-drag && npm run test:ui"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release.git"
+	},
+	"keywords": [
+		"electron",
+		"launcher"
+	],
+	"author": "TMSystems",
+	"license": "UNLICENSED",
+	"type": "commonjs",
+	"dependencies": {
+		"electron-updater": "^6.8.9",
+		"sortablejs": "^1.15.7"
+	},
+	"devDependencies": {
+		"@eslint/js": "^9.39.4",
+		"@types/node": "^22.15.30",
+		"copyfiles": "^2.4.1",
+		"electron": "^41.2.1",
+		"electron-builder": "^26.8.1",
+		"electron-reloader": "^1.2.3",
+		"eslint": "^9.39.4",
+		"eslint-plugin-align-assignments": "^1.1.2",
+		"eslint-plugin-jsdoc": "^61.7.1",
+		"globals": "^16.5.0",
+		"prettier": "^3.9.5",
+		"typescript": "^5.8.3",
+		"typescript-eslint": "^8.32.1",
+		"vscode-css-languageservice": "^6.3.10"
+	}
+}

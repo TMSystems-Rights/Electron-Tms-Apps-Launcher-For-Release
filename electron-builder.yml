@@ -1,0 +1,46 @@
+appId: jp.tm-systems.tms-app-launcher
+productName: TMS-AppsLauncher
+copyright: Copyright © 2026 TMSystems
+directories:
+  output: release/${version}
+  buildResources: build
+files:
+  - dist/**/*
+  - package.json
+extraResources:
+  - from: build/icon.ico
+    to: icon.ico
+  - from: resources/launch-shortcut.vbs
+    to: launch-shortcut.vbs
+  - from: resources/get-taskbar-apps.ps1
+    to: get-taskbar-apps.ps1
+  - from: resources/get-shortcut-identity.ps1
+    to: get-shortcut-identity.ps1
+artifactName: TmsAppLauncher-${version}-setup.${ext}
+publish:
+  provider: github
+  owner: TMSystems-Rights
+  repo: Electron-Tms-Apps-Launcher-For-Release
+  releaseType: release
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: icon.ico
+  executableName: TmsAppLauncher
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  allowElevation: true
+  perMachine: false
+  createDesktopShortcut: false
+  createStartMenuShortcut: true
+  shortcutName: TMS-AppsLauncher
+  installerIcon: icon.ico
+  uninstallerIcon: icon.ico
+  include: installer.nsh
+  installerLanguages:
+    - ja_JP
+  language: "1041"
+  uninstallDisplayName: TMS-AppsLauncher

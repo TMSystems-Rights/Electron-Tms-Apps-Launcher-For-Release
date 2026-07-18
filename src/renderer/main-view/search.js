@@ -1,0 +1,83 @@
+'use strict';
+
+Object.assign(TMS_AL, {
+	Search: {
+		/**
+		 * 検索比較用文字列へ正規化する
+		 * @param {string} value 入力文字列
+		 * @returns {string} 正規化済み文字列
+		 */
+		Normalize: function (value) {
+			return String(value ?? '')
+				.normalize('NFKC')
+				.toLocaleLowerCase()
+				.replace(/\s/gu, '');
+		},
+
+		/**
+		 * 正規化後のアプリ名に検索文字列が部分一致するか判定する
+		 * @param {string} appName アプリ名
+		 * @param {string} query 検索文字列
+		 * @returns {boolean} 部分一致時true
+		 */
+		Contains: function (appName, query) {
+			const normalizedName  = TMS_AL.Search.Normalize(appName);
+			const normalizedQuery = TMS_AL.Search.Normalize(query);
+
+			if (!normalizedQuery) {
+				return false;
+			}
+
+			return normalizedName.includes(normalizedQuery);
+		},
+
+		/**
+		 * 部分一致グループとそれ以外を結合し、必要なら仕切りを挿入する
+		 * @param {object[]} partialItems 部分一致の検索結果（DOM順）
+		 * @param {object[]} otherItems 部分一致以外の検索結果（DOM順）
+		 * @returns {({ appId: string; groupId: string; label: string }|{ type: 'separator' })[]} 表示順の検索結果
+		 */
+		MergeSearchGroups: function (partialItems, otherItems) {
+			const results = partialItems.slice();
+
+			if (partialItems.length > 0 && otherItems.length > 0) {
+				results.push({ type: 'separator' });
+			}
+
+			return results.concat(otherItems);
+		},
+
+		/**
+		 * 各文字が必要数だけアプリ名に含まれるか判定する
+		 * @param {string} appName アプリ名
+		 * @param {string} query 検索文字列
+		 * @returns {boolean} 一致時true
+		 */
+		Matches: function (appName, query) {
+			const normalizedName  = TMS_AL.Search.Normalize(appName);
+			const normalizedQuery = TMS_AL.Search.Normalize(query);
+
+			if (!normalizedQuery) {
+				return false;
+			}
+
+			const counts = new Map();
+
+			for (const char of normalizedName) {
+				counts.set(char, (counts.get(char) ?? 0) + 1);
+			}
+
+			for (const char of normalizedQuery) {
+				const remaining = counts.get(char) ?? 0;
+
+				if (remaining < 1) {
+					return false;
+				}
+
+				counts.set(char, remaining - 1);
+			}
+
+			return true;
+		},
+	},
+});
