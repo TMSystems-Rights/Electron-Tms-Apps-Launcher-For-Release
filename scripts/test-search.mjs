@@ -15,6 +15,7 @@ vm.runInNewContext(source, context, { filename: 'search.js' });
 
 const {
 	Normalize,
+	BuildHighlightParts,
 	Contains,
 	ContainsApp,
 	GetPathFileName,
@@ -22,6 +23,15 @@ const {
 	MatchesApp,
 	MergeSearchGroups,
 } = context.TMS_AL.Search;
+
+/**
+ * VMコンテキスト由来の値を通常のプレーン値へ変換する
+ * @param {unknown} value 変換対象
+ * @returns {unknown} プレーン値
+ */
+function toPlain(value) {
+	return JSON.parse(JSON.stringify(value));
+}
 
 assert.equal(Normalize(' Ａ b　C '), 'abc');
 assert.equal(Matches('abc', 'ab'), true);
@@ -41,6 +51,22 @@ assert.equal(Contains('TAME Sort Utility', 'teams'), false);
 assert.equal(Matches('TAME Sort Utility', 'teams'), true);
 assert.equal(Contains('Visual Studio Code', 'v c s'), false);
 assert.equal(Contains('anything', '   '), false);
+
+assert.deepEqual(toPlain(BuildHighlightParts('LaunchFDE.bat', 'launch')), [
+	{ text: 'Launch', highlight: true },
+	{ text: 'FDE.bat', highlight: false },
+]);
+assert.deepEqual(toPlain(BuildHighlightParts('Code code', 'code')), [
+	{ text: 'Code', highlight: true },
+	{ text: ' ', highlight: false },
+	{ text: 'code', highlight: true },
+]);
+assert.deepEqual(toPlain(BuildHighlightParts('Ｔｅａｍｓ', 'teams')), [
+	{ text: 'Ｔｅａｍｓ', highlight: true },
+]);
+assert.deepEqual(toPlain(BuildHighlightParts('Visual Studio Code', 'v c s')), [
+	{ text: 'Visual Studio Code', highlight: false },
+]);
 
 assert.equal(GetPathFileName('C:\\Program Files\\Microsoft VS Code\\Code.exe'), 'Code.exe');
 assert.equal(GetPathFileName('C:/Tools/ms-teams.exe'), 'ms-teams.exe');

@@ -14,6 +14,8 @@
 	--tms-al-color-running: #059669;
 	--tms-al-color-preview-bg: #dbeafe;
 	--tms-al-color-preview: #2563eb;
+	--tms-al-color-search-highlight-bg: #fef08a;
+	--tms-al-color-search-highlight-text: #713f12;
 	--tms-al-font-family: "Segoe UI", "Meiryo", sans-serif;
 	--tms-al-radius: 6px;
 	--tms-al-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
@@ -40,6 +42,8 @@ body.tms-al-theme-dark {
 	--tms-al-color-running: #34d399;
 	--tms-al-color-preview-bg: #173963;
 	--tms-al-color-preview: #60a5fa;
+	--tms-al-color-search-highlight-bg: #854d0e;
+	--tms-al-color-search-highlight-text: #fef9c3;
 	--tms-al-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 	--tms-al-titlebar-active-bg: #2d2d2d;
 	--tms-al-titlebar-active-text: #f0f0f0;
@@ -58,6 +62,8 @@ body.tms-al-theme-light {
 	--tms-al-color-running: #059669;
 	--tms-al-color-preview-bg: #dbeafe;
 	--tms-al-color-preview: #2563eb;
+	--tms-al-color-search-highlight-bg: #fef08a;
+	--tms-al-color-search-highlight-text: #713f12;
 	--tms-al-titlebar-active-bg: #ffffff;
 	--tms-al-titlebar-active-text: #1a1a1a;
 	--tms-al-titlebar-inactive-bg: #ffffff;
@@ -81,6 +87,8 @@ body.tms-al-theme-light {
 		--tms-al-color-running: #34d399;
 		--tms-al-color-preview-bg: #173963;
 		--tms-al-color-preview: #60a5fa;
+		--tms-al-color-search-highlight-bg: #854d0e;
+		--tms-al-color-search-highlight-text: #fef9c3;
 		--tms-al-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 		--tms-al-titlebar-active-bg: #2d2d2d;
 		--tms-al-titlebar-active-text: #f0f0f0;
@@ -240,7 +248,36 @@ body.tms-al-window-focused .tms-al-header {
 }
 
 .tms-al-search__option {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
 	cursor: pointer;
+}
+
+.tms-al-search__option-line {
+	display: block;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.tms-al-search__option-line--path {
+	font-size: 11px;
+	color: var(--tms-al-color-text-muted);
+}
+
+.tms-al-search__group-name {
+	color: var(--tms-al-color-text-muted);
+}
+
+.tms-al-search__highlight {
+	padding: 0 1px;
+	font-weight: 600;
+	color: var(--tms-al-color-search-highlight-text);
+	background-color: var(--tms-al-color-search-highlight-bg);
+	border-radius: 2px;
 }
 
 .tms-al-search__option:hover,

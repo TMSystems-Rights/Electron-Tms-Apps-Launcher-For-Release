@@ -474,7 +474,7 @@ Object.assign(TMS_AL.ScreenMain, {
 	/** @type {Set<string>} */
 	_runningAppIds: new Set(),
 
-	/** @type {{ appId: string; groupId: string; label: string }[]} */
+	/** @type {({ appId: string; groupId: string; groupName: string; appName: string; path: string; pathFileName: string; label: string }|{ type: 'separator' })[]} */
 	_searchResults: [],
 
 	/** @type {number} */
@@ -913,7 +913,7 @@ Object.assign(TMS_AL.ScreenMain, {
 	/**
 	 * 現在のDOM表示順で検索結果を構築する
 	 * @param {string} query 検索文字列
-	 * @returns {{ appId: string; groupId: string; label: string }[]} 検索結果
+	 * @returns {({ appId: string; groupId: string; groupName: string; appName: string; path: string; pathFileName: string; label: string }|{ type: 'separator' })[]} 検索結果
 	 */
 	BuildSearchResults: function (query) {
 		const data = TMS_AL.ScreenMain._data;
@@ -935,11 +935,17 @@ Object.assign(TMS_AL.ScreenMain, {
 				return;
 			}
 
-			const group = groupsById.get(app.groupId);
-			const item  = {
-				appId  : app.id,
-				groupId: app.groupId,
-				label  : `${group?.name ?? TMS_AL_COMMON.Const.UNCATEGORIZED_NAME}：${app.name}`,
+			const group        = groupsById.get(app.groupId);
+			const groupName    = group?.name ?? TMS_AL_COMMON.Const.UNCATEGORIZED_NAME;
+			const pathFileName = TMS_AL.Search.GetPathFileName(app.path);
+			const item         = {
+				appId       : app.id,
+				groupId     : app.groupId,
+				groupName   : groupName,
+				appName     : app.name,
+				path        : app.path,
+				pathFileName: pathFileName,
+				label       : `${groupName}：${app.name}`,
 			};
 
 			if (TMS_AL.Search.ContainsApp(app.name, app.path, query)) {
@@ -1085,6 +1091,78 @@ Object.assign(TMS_AL.ScreenMain, {
 	},
 
 	/**
+	 * 検索ハイライト付きのテキストを要素へ追加する
+	 * @param {HTMLElement} parentEl 追加先要素
+	 * @param {string} text 表示文字列
+	 * @param {string} query 検索文字列
+	 * @returns {void}
+	 */
+	AppendHighlightedSearchText: function (parentEl, text, query) {
+		for (const part of TMS_AL.Search.BuildHighlightParts(text, query)) {
+			if (!part.highlight) {
+				parentEl.appendChild(document.createTextNode(part.text));
+				continue;
+			}
+
+			const markEl       = document.createElement('mark');
+			markEl.className   = 'tms-al-search__highlight';
+			markEl.textContent = part.text;
+			parentEl.appendChild(markEl);
+		}
+	},
+
+	/**
+	 * 検索結果オプション要素を生成する
+	 * @param {{ appId: string; groupName: string; appName: string; path: string; pathFileName: string; label: string }} result 検索結果
+	 * @param {number} index 検索結果インデックス
+	 * @param {string} query 検索文字列
+	 * @returns {HTMLElement} 検索結果オプション要素
+	 */
+	CreateSearchOptionElement: function (result, index, query) {
+		const optionEl = document.createElement('div');
+		const title    = result.path ? `${result.label}\n${result.path}` : result.label;
+
+		optionEl.id        = `tmsAlSearchOption${index}`;
+		optionEl.className = 'tms-al-search__option';
+		optionEl.title     = title;
+		optionEl.setAttribute('role', 'option');
+		optionEl.setAttribute('aria-selected', 'false');
+		optionEl.setAttribute(
+			'aria-label',
+			result.pathFileName ? `${result.label} ${result.pathFileName}` : result.label,
+		);
+
+		const primaryLineEl = document.createElement('div');
+		const groupNameEl   = document.createElement('span');
+
+		primaryLineEl.className = 'tms-al-search__option-line tms-al-search__option-line--primary';
+		groupNameEl.className   = 'tms-al-search__group-name';
+		groupNameEl.textContent = `${result.groupName}：`;
+		primaryLineEl.appendChild(groupNameEl);
+		TMS_AL.ScreenMain.AppendHighlightedSearchText(primaryLineEl, result.appName, query);
+		optionEl.appendChild(primaryLineEl);
+
+		if (result.pathFileName) {
+			const pathLineEl = document.createElement('div');
+
+			pathLineEl.className = 'tms-al-search__option-line tms-al-search__option-line--path';
+			pathLineEl.title     = result.path;
+			TMS_AL.ScreenMain.AppendHighlightedSearchText(pathLineEl, result.pathFileName, query);
+			optionEl.appendChild(pathLineEl);
+		}
+
+		optionEl.addEventListener('mouseenter', () => {
+			TMS_AL.ScreenMain.SelectSearchResult(index);
+		});
+		optionEl.addEventListener('click', () => {
+			TMS_AL.ScreenMain.SelectSearchResult(index);
+			TMS_AL.ScreenMain.LaunchApp(result.appId);
+		});
+
+		return optionEl;
+	},
+
+	/**
 	 * 入力値から検索結果リストを更新する
 	 * @returns {void}
 	 */
@@ -1125,21 +1203,9 @@ Object.assign(TMS_AL.ScreenMain, {
 					return;
 				}
 
-				const optionEl = document.createElement('div');
-
-				optionEl.id          = `tmsAlSearchOption${index}`;
-				optionEl.className   = 'tms-al-search__option';
-				optionEl.textContent = result.label;
-				optionEl.setAttribute('role', 'option');
-				optionEl.setAttribute('aria-selected', 'false');
-				optionEl.addEventListener('mouseenter', () => {
-					TMS_AL.ScreenMain.SelectSearchResult(index);
-				});
-				optionEl.addEventListener('click', () => {
-					TMS_AL.ScreenMain.SelectSearchResult(index);
-					TMS_AL.ScreenMain.LaunchApp(result.appId);
-				});
-				resultsEl.appendChild(optionEl);
+				resultsEl.appendChild(
+					TMS_AL.ScreenMain.CreateSearchOptionElement(result, index, inputEl.value),
+				);
 			});
 		}
 
