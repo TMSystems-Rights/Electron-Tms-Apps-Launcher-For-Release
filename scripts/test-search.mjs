@@ -53,19 +53,36 @@ assert.equal(Contains('Visual Studio Code', 'v c s'), false);
 assert.equal(Contains('anything', '   '), false);
 
 assert.deepEqual(toPlain(BuildHighlightParts('LaunchFDE.bat', 'launch')), [
-	{ text: 'Launch', highlight: true },
+	{ text: 'Launch', highlight: true, kind: 'partial' },
 	{ text: 'FDE.bat', highlight: false },
 ]);
 assert.deepEqual(toPlain(BuildHighlightParts('Code code', 'code')), [
-	{ text: 'Code', highlight: true },
+	{ text: 'Code', highlight: true, kind: 'partial' },
 	{ text: ' ', highlight: false },
-	{ text: 'code', highlight: true },
+	{ text: 'code', highlight: true, kind: 'partial' },
 ]);
 assert.deepEqual(toPlain(BuildHighlightParts('Ｔｅａｍｓ', 'teams')), [
-	{ text: 'Ｔｅａｍｓ', highlight: true },
+	{ text: 'Ｔｅａｍｓ', highlight: true, kind: 'partial' },
 ]);
 assert.deepEqual(toPlain(BuildHighlightParts('Visual Studio Code', 'v c s')), [
-	{ text: 'Visual Studio Code', highlight: false },
+	{ text: 'V', highlight: true, kind: 'character' },
+	{ text: 'i', highlight: false },
+	{ text: 's', highlight: true, kind: 'character' },
+	{ text: 'ual Studio ', highlight: false },
+	{ text: 'C', highlight: true, kind: 'character' },
+	{ text: 'ode', highlight: false },
+]);
+assert.deepEqual(toPlain(BuildHighlightParts('TAME Sort Utility', 'teams')), [
+	{ text: 'T', highlight: true, kind: 'character' },
+	{ text: 'A', highlight: true, kind: 'character' },
+	{ text: 'M', highlight: true, kind: 'character' },
+	{ text: 'E', highlight: true, kind: 'character' },
+	{ text: ' ', highlight: false },
+	{ text: 'S', highlight: true, kind: 'character' },
+	{ text: 'ort Utility', highlight: false },
+]);
+assert.deepEqual(toPlain(BuildHighlightParts('Other.exe', 'teams')), [
+	{ text: 'Other.exe', highlight: false },
 ]);
 
 assert.equal(GetPathFileName('C:\\Program Files\\Microsoft VS Code\\Code.exe'), 'Code.exe');

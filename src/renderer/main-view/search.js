@@ -35,7 +35,7 @@ Object.assign(TMS_AL, {
 		 * 部分一致した連続文字列を表示用パーツへ分割する
 		 * @param {string} value 表示文字列
 		 * @param {string} query 検索文字列
-		 * @returns {{ text: string; highlight: boolean }[]} 表示用パーツ
+		 * @returns {{ text: string; highlight: boolean; kind?: 'partial' | 'character' }[]} 表示用パーツ
 		 */
 		BuildHighlightParts: function (value, query) {
 			const text            = String(value ?? '');
@@ -85,12 +85,39 @@ Object.assign(TMS_AL, {
 				ranges.push({
 					start: charMap[index].start,
 					end  : charMap[index + queryChars.length - 1].end,
+					kind : 'partial',
 				});
 				index += queryChars.length;
 			}
 
 			if (ranges.length === 0) {
-				return [{ text, highlight: false }];
+				const remainingCounts = new Map();
+
+				for (const char of queryChars) {
+					remainingCounts.set(char, (remainingCounts.get(char) ?? 0) + 1);
+				}
+
+				for (let index = 0; index < valueChars.length; index += 1) {
+					const char      = valueChars[index];
+					const remaining = remainingCounts.get(char) ?? 0;
+
+					if (remaining < 1) {
+						continue;
+					}
+
+					ranges.push({
+						start: charMap[index].start,
+						end  : charMap[index].end,
+						kind : 'character',
+					});
+					remainingCounts.set(char, remaining - 1);
+				}
+
+				for (const remaining of remainingCounts.values()) {
+					if (remaining > 0) {
+						return [{ text, highlight: false }];
+					}
+				}
 			}
 
 			const parts = [];
@@ -101,7 +128,11 @@ Object.assign(TMS_AL, {
 					parts.push({ text: text.slice(cursor, range.start), highlight: false });
 				}
 
-				parts.push({ text: text.slice(range.start, range.end), highlight: true });
+				parts.push({
+					text     : text.slice(range.start, range.end),
+					highlight: true,
+					kind     : range.kind,
+				});
 				cursor = range.end;
 			}
 

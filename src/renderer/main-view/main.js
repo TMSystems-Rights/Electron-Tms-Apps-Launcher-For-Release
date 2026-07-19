@@ -1107,6 +1107,11 @@ Object.assign(TMS_AL.ScreenMain, {
 			const markEl       = document.createElement('mark');
 			markEl.className   = 'tms-al-search__highlight';
 			markEl.textContent = part.text;
+
+			if (part.kind === 'character') {
+				markEl.classList.add('tms-al-search__highlight--character');
+			}
+
 			parentEl.appendChild(markEl);
 		}
 	},
