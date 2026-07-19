@@ -63,6 +63,8 @@ app.whenReady().then(async () => {
 		const option = results.querySelector('[role="option"]');
 		const initial = {
 			resultText: option?.textContent,
+			lineTexts: [...option?.querySelectorAll('.tms-al-search__option-line') ?? []].map((line) => line.textContent),
+			characterHighlights: option?.querySelectorAll('.tms-al-search__highlight--character').length,
 			resultCount: results.querySelectorAll('[role="option"]').length,
 		};
 		const launchIds = [];
@@ -99,6 +101,15 @@ app.whenReady().then(async () => {
 		input.dispatchEvent(new Event('input', { bubbles: true }));
 		const teamsSearch = {
 			labels: [...results.querySelectorAll('[role="option"]')].map((option) => option.textContent),
+			lineTexts: [...results.querySelectorAll('[role="option"]')].map((option) => (
+				[...option.querySelectorAll('.tms-al-search__option-line')].map((line) => line.textContent)
+			)),
+			partialHighlightCounts: [...results.querySelectorAll('[role="option"]')].map((option) => (
+				option.querySelectorAll('.tms-al-search__highlight:not(.tms-al-search__highlight--character)').length
+			)),
+			characterHighlightCounts: [...results.querySelectorAll('[role="option"]')].map((option) => (
+				option.querySelectorAll('.tms-al-search__highlight--character').length
+			)),
 			hasSeparator: results.querySelector('.tms-al-search__separator') !== null,
 			resultCount: results.querySelectorAll('[role="option"]').length,
 		};
@@ -147,7 +158,9 @@ app.whenReady().then(async () => {
 		};
 	})()`);
 
-	const passed = result.initial.resultText === '開発：Visual Studio Code'
+	const passed = result.initial.resultText === '開発：Visual Studio CodeCode.exe'
+		&& JSON.stringify(result.initial.lineTexts) === JSON.stringify(['開発：Visual Studio Code', 'Code.exe'])
+		&& result.initial.characterHighlights === 3
 		&& result.initial.resultCount === 1
 		&& JSON.stringify(result.launchIds) === JSON.stringify(['a-code', 'a-code'])
 		&& result.contextAction.appId === 'a-code'
@@ -158,9 +171,14 @@ app.whenReady().then(async () => {
 		&& result.cleared.inputValue === ''
 		&& result.cleared.resultsHidden
 		&& !result.cleared.groupExpanded
-		&& result.teamsSearch.labels[0] === '連絡：Microsoft Teams'
-		&& result.teamsSearch.labels[1] === '連絡：ms-teams'
-		&& result.teamsSearch.labels[2] === '開発：TAME Sort Utility'
+		&& result.teamsSearch.labels[0] === '連絡：Microsoft Teamsms-teams.exe'
+		&& result.teamsSearch.labels[1] === '連絡：ms-teamsms-teams.exe'
+		&& result.teamsSearch.labels[2] === '開発：TAME Sort UtilityTameSort.exe'
+		&& JSON.stringify(result.teamsSearch.lineTexts[0]) === JSON.stringify(['連絡：Microsoft Teams', 'ms-teams.exe'])
+		&& JSON.stringify(result.teamsSearch.lineTexts[1]) === JSON.stringify(['連絡：ms-teams', 'ms-teams.exe'])
+		&& JSON.stringify(result.teamsSearch.lineTexts[2]) === JSON.stringify(['開発：TAME Sort Utility', 'TameSort.exe'])
+		&& JSON.stringify(result.teamsSearch.partialHighlightCounts) === JSON.stringify([2, 2, 0])
+		&& JSON.stringify(result.teamsSearch.characterHighlightCounts) === JSON.stringify([0, 0, 10])
 		&& result.teamsSearch.hasSeparator
 		&& result.teamsSearch.resultCount === 3
 		&& result.globalCleared.inputValue === ''

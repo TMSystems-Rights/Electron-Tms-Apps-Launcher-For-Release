@@ -6,6 +6,12 @@
 
 公開配布リポジトリ: [TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release](https://github.com/TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release)
 
+## v1.7.0 の主な変更
+
+- 検索対象にアプリ名だけでなく、実行パスのファイル名も含めるようにしました。
+- 検索結果に実行パスのファイル名を表示し、ヒット箇所をハイライトするようにしました。
+- 部分一致と文字ばらし一致でハイライト表示を変え、検索理由を判別しやすくしました。
+
 ## v1.6.5 の主な変更
 
 - 公開配布リポジトリを `Electron-Tms-Apps-Launcher-For-Release` に切り替えました。
