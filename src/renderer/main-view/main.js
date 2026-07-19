@@ -1250,6 +1250,38 @@ Object.assign(TMS_AL.ScreenMain, {
 	},
 
 	/**
+	 * アプリ検索入力へフォーカスする
+	 * @returns {void}
+	 */
+	FocusSearchInput: function () {
+		if (TMS_AL.ScreenMain.HasOpenModal()
+			|| !document.body.classList.contains(TMS_AL.Const.WINDOW_FOCUSED_CLASS)) {
+			return;
+		}
+
+		const inputEl = document.getElementById('tmsAlSearchInput');
+
+		if (inputEl instanceof HTMLInputElement && !inputEl.disabled) {
+			inputEl.focus({ preventScroll: true });
+		}
+	},
+
+	/**
+	 * ウィンドウフォーカス変更時の画面操作を処理する
+	 * @param {boolean} focused フォーカス中なら true
+	 * @returns {void}
+	 */
+	HandleWindowFocusChanged: function (focused) {
+		if (!focused) {
+			return;
+		}
+
+		window.setTimeout(() => {
+			TMS_AL.ScreenMain.FocusSearchInput();
+		}, 0);
+	},
+
+	/**
 	 * 検索ボックス外のキー操作を処理する
 	 * @param {KeyboardEvent} event キーイベント
 	 * @returns {void}
@@ -2080,6 +2112,14 @@ Object.assign(TMS_AL.ScreenMain, {
 			searchInput.addEventListener('input', TMS_AL.ScreenMain.UpdateSearchResults);
 			searchInput.addEventListener('keydown', TMS_AL.ScreenMain.HandleSearchKeyDown);
 		}
+
+		window.addEventListener('focus', () => {
+			TMS_AL.ScreenMain.HandleWindowFocusChanged(true);
+		});
+		window.launcherApi.onWindowFocusChanged((focused) => {
+			TMS_AL.ScreenMain.HandleWindowFocusChanged(focused);
+		});
+		TMS_AL.ScreenMain.HandleWindowFocusChanged(document.hasFocus());
 
 		document.addEventListener('keydown', TMS_AL.ScreenMain.HandleGlobalKeyDown, { capture: true });
 

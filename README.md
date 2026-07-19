@@ -6,6 +6,10 @@
 
 公開配布リポジトリ: [TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release](https://github.com/TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release)
 
+## v1.7.1 の主な変更
+
+- ウィンドウがアクティブになったとき、アプリ検索入力へ自動でフォーカスするようにしました。
+
 ## v1.7.0 の主な変更
 
 - 検索対象にアプリ名だけでなく、実行パスのファイル名も含めるようにしました。

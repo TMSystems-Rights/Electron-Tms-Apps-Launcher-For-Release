@@ -123,6 +123,25 @@ app.whenReady().then(async () => {
 			activeElementId: document.activeElement?.id,
 		};
 
+		const btnExpandAll = document.getElementById('tmsAlBtnExpandAll');
+		btnExpandAll?.focus();
+		window.dispatchEvent(new Event('focus'));
+		await new Promise((resolve) => setTimeout(resolve, 20));
+		const windowFocus = {
+			activeElementId: document.activeElement?.id,
+		};
+
+		const settingsModal = document.getElementById('tmsAlModalSettings');
+		const settingsClose = document.getElementById('tmsAlBtnSettingsClose');
+		settingsModal.hidden = false;
+		settingsClose?.focus();
+		window.dispatchEvent(new Event('focus'));
+		await new Promise((resolve) => setTimeout(resolve, 20));
+		const modalWindowFocus = {
+			activeElementId: document.activeElement?.id,
+		};
+		settingsModal.hidden = true;
+
 		TMS_AL.ScreenMain.ApplyRunningApps({ appIds: ['a-code'] });
 		await TMS_AL.ScreenMain.Render();
 		const rerenderedRow = document.querySelector('[data-app-id="a-code"]');
@@ -152,6 +171,8 @@ app.whenReady().then(async () => {
 			cleared,
 			teamsSearch,
 			globalCleared,
+			windowFocus,
+			modalWindowFocus,
 			running,
 			contextMenu,
 			darkTheme: document.body.classList.contains('tms-al-theme-dark'),
@@ -184,6 +205,8 @@ app.whenReady().then(async () => {
 		&& result.globalCleared.inputValue === ''
 		&& result.globalCleared.resultsHidden
 		&& result.globalCleared.activeElementId === 'tmsAlBtnCollapseAll'
+		&& result.windowFocus.activeElementId === 'tmsAlSearchInput'
+		&& result.modalWindowFocus.activeElementId === 'tmsAlBtnSettingsClose'
 		&& result.running.classApplied
 		&& result.running.dotVisible
 		&& result.contextMenu.count === 1
