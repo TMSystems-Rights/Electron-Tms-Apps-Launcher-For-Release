@@ -2,8 +2,6 @@
 
 起動アプリをグループ分け整理し表示するアプリ起動ランチャー。Electron + TypeScript（main/preload）+ Vanilla JavaScript（renderer）で構築。
 
-リポジトリ: [TMSystems-Rights/Electron-Tms-Apps-Launcher](https://github.com/TMSystems-Rights/Electron-Tms-Apps-Launcher)
-
 公開配布リポジトリ: [TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release](https://github.com/TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release)
 
 ## v1.7.1 の主な変更
@@ -83,12 +81,12 @@ npm run dist
 
 electron-builder は既存の `app.asar` を **unlink（削除／置換）** します。別プロセスが参照していると失敗します。**エクスプローラーで release を開いていなくても**起こり得ます。
 
-| 想定原因 | 対処 |
-| -------- | ---- |
-| **Cursor 等 IDE** が `release/` を監視 | `.cursorignore` と `.vscode/settings.json` の `watcherExclude` を設定済み。**Cursor 完全終了**後に再ビルド。孤立フォルダの削除は Cursor 外のターミナルで `pwsh -File scripts/remove-orphan-build-dir.ps1` |
-| **ウイルス対策**（F-Secure / NURO SAFE 等） | `release` フォルダをリアルタイムスキャンの**除外**に追加 |
-| **Windows Search** のインデックス | しばらく待つか、`release` をインデックス対象外にする |
-| `release\...\win-unpacked` からアプリ起動中 | プロセスを終了してから再ビルド |
+| 想定原因                                    | 対処                                                                                                                                                                                                      |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Cursor 等 IDE** が `release/` を監視      | `.cursorignore` と `.vscode/settings.json` の `watcherExclude` を設定済み。**Cursor 完全終了**後に再ビルド。孤立フォルダの削除は Cursor 外のターミナルで `pwsh -File scripts/remove-orphan-build-dir.ps1` |
+| **ウイルス対策**（F-Secure / NURO SAFE 等） | `release` フォルダをリアルタイムスキャンの**除外**に追加                                                                                                                                                  |
+| **Windows Search** のインデックス           | しばらく待つか、`release` をインデックス対象外にする                                                                                                                                                      |
+| `release\...\win-unpacked` からアプリ起動中 | プロセスを終了してから再ビルド                                                                                                                                                                            |
 
 **推奨**: パッケージ版の動作確認は `win-unpacked` 直起動ではなく、生成された `setup.exe` でインストールした版を使う。
 
@@ -131,17 +129,17 @@ AI（Cursor 等）がリリース作業を行う場合は、`.cursor/rules/relea
 - `git status` が clean（未コミットの version 変更がない）
 - `git rev-parse HEAD` と `git rev-parse origin/main` が一致している
 - **コミット済み**の `package.json` の `version` が今回のリリース番号と一致している
-  - ローカルだけ version を上げて未コミットのままビルドすると、インストーラ内容と Release タグの対応がずれる
+    - ローカルだけ version を上げて未コミットのままビルドすると、インストーラ内容と Release タグの対応がずれる
 
 ##### 必須成果物
 
 `npm run dist` 後、`release/<version>/` に次の 3 点があることを確認します。
 
-| ファイル | 用途 |
-| -------- | ---- |
-| `TmsAppLauncher-<version>-setup.exe` | NSIS インストーラ |
-| `TmsAppLauncher-<version>-setup.exe.blockmap` | 差分更新用 |
-| `latest.yml` | electron-updater が参照する最新バージョン情報 |
+| ファイル                                      | 用途                                          |
+| --------------------------------------------- | --------------------------------------------- |
+| `TmsAppLauncher-<version>-setup.exe`          | NSIS インストーラ                             |
+| `TmsAppLauncher-<version>-setup.exe.blockmap` | 差分更新用                                    |
+| `latest.yml`                                  | electron-updater が参照する最新バージョン情報 |
 
 `latest.yml` は同じ `npm run dist` で生成された `setup.exe` の `sha512` と `size` を持ちます。`npm run dist` を再実行した場合は、必ず上記 3 点を同じ実行結果でまとめて公開し直してください。
 
@@ -220,12 +218,12 @@ Remove-Item Env:GH_TOKEN
 
 ### インストーラの仕様
 
-| 項目           | 内容                                                                             |
-| -------------- | -------------------------------------------------------------------------------- |
-| 形式           | NSIS（`.exe`）                                                                   |
-| インストール先 | ウィザードで変更可能（デフォルト: `%LOCALAPPDATA%\Programs\TMS-AppsLauncher`）   |
-| ショートカット | スタートメニュー（常時）、デスクトップ（追加タスク画面・**デフォルト ON**） |
-| 対象           | Windows 11 64bit                                                                 |
+| 項目           | 内容                                                                           |
+| -------------- | ------------------------------------------------------------------------------ |
+| 形式           | NSIS（`.exe`）                                                                 |
+| インストール先 | ウィザードで変更可能（デフォルト: `%LOCALAPPDATA%\Programs\TMS-AppsLauncher`） |
+| ショートカット | スタートメニュー（常時）、デスクトップ（追加タスク画面・**デフォルト ON**）    |
+| 対象           | Windows 11 64bit                                                               |
 
 インストール後、データは `%APPDATA%\tms-app-launcher\` に保存されます（開発版の `tms-app-launcher-dev` とは別です）。
 
