@@ -32,6 +32,18 @@ function getLaunchShortcutScriptPath(): string {
 }
 
 /**
+ * GUI 実行ファイル起動用 VBS スクリプトのパス
+ * @returns {string} VBS パス
+ */
+function getLaunchExeScriptPath(): string {
+	if (app.isPackaged) {
+		return path.join(process.resourcesPath, 'launch-exe.vbs');
+	}
+
+	return path.join(app.getAppPath(), 'resources', 'launch-exe.vbs');
+}
+
+/**
  * 起動後のランチャー挙動を適用する
  * @param {BrowserWindow} win メインウィンドウ
  * @param {'stay' | 'minimize' | 'close'} behavior 挙動
@@ -421,7 +433,7 @@ async function launchResolvedTargetAsAdmin(
  * @param {string} workingDir 作業ディレクトリ
  * @param {string} [title] コンソール系の場合に設定するウィンドウタイトル
  * @param {boolean} [runAsAdmin=false] 管理者権限で起動するか
- * @returns {Promise<void>}
+ * @returns {Promise<'runas' | 'direct' | 'shellexecute'>} 実際の起動方式
  */
 async function launchResolvedTarget(
 	targetPath: string,
@@ -429,18 +441,18 @@ async function launchResolvedTarget(
 	workingDir: string,
 	title?: string,
 	runAsAdmin = false,
-): Promise<void> {
+): Promise<'runas' | 'direct' | 'shellexecute'> {
 	const cwd = workingDir || path.dirname(targetPath);
 
 	if (runAsAdmin) {
 		await launchResolvedTargetAsAdmin(targetPath, args, workingDir, title);
-		return;
+		return 'runas';
 	}
 
 	// コンソール（黒い画面）を伴う起動は、識別しやすいようアプリ名をタイトルに表示する。
 	if (title && isConsoleScriptTarget(targetPath)) {
 		await launchConsoleWithTitle(title, targetPath, args, cwd);
-		return;
+		return 'direct';
 	}
 
 	const argList = parseWindowsArgs(args);
@@ -448,7 +460,7 @@ async function launchResolvedTarget(
 
 	if (ext === '.bat' || ext === '.cmd') {
 		await spawnDetached('cmd.exe', ['/d', '/c', targetPath, ...argList], cwd);
-		return;
+		return 'direct';
 	}
 
 	if (ext === '.ps1') {
@@ -457,10 +469,13 @@ async function launchResolvedTarget(
 			['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', targetPath, ...argList],
 			cwd,
 		);
-		return;
+		return 'direct';
 	}
 
-	await spawnDetached(targetPath, argList, cwd);
+	// GUI の .exe 等は ShellExecute で起動する（CreateProcess 直起動だと
+	// 未保存確認などのモーダルが前面に出ない／閉じられない症状が出ることがある）。
+	await launchExecutableViaShell(targetPath, args, cwd);
+	return 'shellexecute';
 }
 
 /**
@@ -488,6 +503,40 @@ async function launchShortcut(lnkPath: string): Promise<void> {
 	if (openResult) {
 		throw new Error(openResult);
 	}
+}
+
+/**
+ * GUI 実行ファイルを ShellExecute 経由で別プロセス起動する（エクスプローラー相当）。
+ *
+ * Node の spawn（CreateProcess）直起動だと、子アプリの未保存確認などの
+ * モーダルダイアログが前面に出ず、閉じられないように見えることがある。
+ * @param {string} targetPath 実行パス
+ * @param {string} args 引数文字列
+ * @param {string} cwd 作業ディレクトリ
+ * @returns {Promise<void>}
+ */
+async function launchExecutableViaShell(
+	targetPath: string,
+	args: string,
+	cwd: string,
+): Promise<void> {
+	if (process.platform !== 'win32') {
+		await spawnDetached(targetPath, parseWindowsArgs(args), cwd);
+		return;
+	}
+
+	const scriptPath = getLaunchExeScriptPath();
+
+	if (!pathExists(scriptPath)) {
+		throw new Error(`Executable launcher script not found: ${scriptPath}`);
+	}
+
+	await spawnDetached(
+		'wscript.exe',
+		['//B', '//Nologo', scriptPath, targetPath, args || '', cwd || ''],
+		undefined,
+		true,
+	);
 }
 
 /**
@@ -527,11 +576,15 @@ export async function launchApp(
 	}
 
 	try {
-		const ext         = path.extname(normalizedPath).toLowerCase();
-		const startedAt   = Date.now();
-		let   readMs      = 0;
-		let   launchedVia = runAsAdmin ? 'runas' : 'direct';
-		let   targetPath  = normalizedPath;
+		const ext                                                                 = path.extname(normalizedPath).toLowerCase();
+		const startedAt                                                           = Date.now();
+		let   readMs                                                              = 0;
+		let   targetPath                                                          = normalizedPath;
+		let   launchedVia: 'runas' | 'direct' | 'shellexecute' | 'shortcut-runas' = 'direct';
+
+		if (runAsAdmin) {
+			launchedVia = 'runas';
+		}
 
 		if (ext === '.lnk') {
 			// .lnk のターゲットを読み取り、ターゲットを直接起動する。
@@ -543,8 +596,8 @@ export async function launchApp(
 			readMs = Date.now() - readStart;
 
 			if (shortcut?.target) {
-				targetPath = shortcut.target;
-				await launchResolvedTarget(
+				targetPath  = shortcut.target;
+				launchedVia = await launchResolvedTarget(
 					shortcut.target,
 					args || shortcut.args,
 					workingDir || shortcut.cwd,
@@ -562,7 +615,13 @@ export async function launchApp(
 				}
 			}
 		} else {
-			await launchResolvedTarget(normalizedPath, args, workingDir, appName, runAsAdmin);
+			launchedVia = await launchResolvedTarget(
+				normalizedPath,
+				args,
+				workingDir,
+				appName,
+				runAsAdmin,
+			);
 		}
 
 		applyLaunchBehavior(win, launchBehavior);

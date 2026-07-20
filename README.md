@@ -4,6 +4,10 @@
 
 公開配布リポジトリ: [TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release](https://github.com/TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release)
 
+## v1.7.2 の主な変更
+
+- GUI アプリの起動を ShellExecute 経由に変更し、サクラエディタなど未保存確認ダイアログが出ない不具合を修正しました。
+
 ## v1.7.1 の主な変更
 
 - ウィンドウがアクティブになったとき、アプリ検索入力へ自動でフォーカスするようにしました。

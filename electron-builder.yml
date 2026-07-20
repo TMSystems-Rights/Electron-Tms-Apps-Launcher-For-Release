@@ -12,6 +12,8 @@ extraResources:
     to: icon.ico
   - from: resources/launch-shortcut.vbs
     to: launch-shortcut.vbs
+  - from: resources/launch-exe.vbs
+    to: launch-exe.vbs
   - from: resources/get-taskbar-apps.ps1
     to: get-taskbar-apps.ps1
   - from: resources/get-shortcut-identity.ps1
