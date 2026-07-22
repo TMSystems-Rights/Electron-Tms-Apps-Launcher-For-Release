@@ -85,6 +85,135 @@ function normalizeIdentity(value: string): string {
 }
 
 /**
+ * batch の簡易コマンドラインを引数配列へ分割する
+ * @param {string} value コマンドライン
+ * @returns {string[]} 引数
+ */
+function parseBatchArguments(value: string): string[] {
+	const result: string[] = [];
+	let   current          = '';
+	let   inQuotes         = false;
+	let   hasContent       = false;
+
+	for (const ch of value.trim()) {
+		if (ch === '"') {
+			inQuotes   = !inQuotes;
+			hasContent = true;
+			continue;
+		}
+
+		if (!inQuotes && /\s/.test(ch)) {
+			if (hasContent) {
+				result.push(current);
+				current    = '';
+				hasContent = false;
+			}
+
+			continue;
+		}
+
+		current   += ch;
+		hasContent = true;
+	}
+
+	if (hasContent) {
+		result.push(current);
+	}
+
+	return result;
+}
+
+/**
+ * batch 変数を展開する
+ * @param {string} value 対象文字列
+ * @param {Map<string, string>} variables 変数
+ * @returns {string} 展開後文字列
+ */
+function expandBatchVariables(value: string, variables: Map<string, string>): string {
+	return value.replace(/%([^%]+)%/g, (token, name: string) => {
+		return variables.get(name.toLowerCase()) ?? token;
+	});
+}
+
+/**
+ * batch の start コマンド引数から起動 exe を取り出す
+ * @param {string[]} args start 以降の引数
+ * @returns {string} exe パス
+ */
+function getStartCommandExecutable(args: string[]): string {
+	let index = 0;
+
+	while (args[index]?.startsWith('/')) {
+		const option = args[index].toLowerCase();
+
+		index += 1;
+
+		if (option === '/d' && index < args.length) {
+			index += 1;
+		}
+	}
+
+	if (args[index] === '') {
+		index += 1;
+	}
+
+	const candidate = args[index] ?? '';
+
+	if (path.win32.isAbsolute(candidate)
+		&& path.win32.extname(candidate).toLowerCase() === '.exe') {
+		return candidate;
+	}
+
+	return '';
+}
+
+/**
+ * batch の代表的な `start "" "%VAR%"` 形式から起動 exe を抽出する
+ * @param {string} scriptContent batch 内容
+ * @returns {string} 起動 exe パス
+ */
+export function getBatchLaunchExecutable(scriptContent: string): string {
+	const variables = new Map<string, string>();
+	const lines     = String(scriptContent ?? '').split(/\r?\n/);
+
+	for (const rawLine of lines) {
+		const line = rawLine.trim().replace(/^@+/, '').trim();
+
+		if (!line || /^rem(?:\s|$)/i.test(line) || line.startsWith('::')) {
+			continue;
+		}
+
+		const setMatch = line.match(/^set\s+(?:"([^=]+)=(.*)"|([^=\s]+)=(.*))$/i);
+
+		if (setMatch) {
+			const name  = (setMatch[1] ?? setMatch[3] ?? '').trim();
+			const value = (setMatch[2] ?? setMatch[4] ?? '').trim();
+
+			if (name) {
+				variables.set(name.toLowerCase(), expandBatchVariables(value, variables));
+			}
+
+			continue;
+		}
+
+		const expanded = expandBatchVariables(line, variables);
+		const args     = parseBatchArguments(expanded);
+
+		if (args[0]?.toLowerCase() !== 'start') {
+			continue;
+		}
+
+		const executablePath = getStartCommandExecutable(args.slice(1));
+
+		if (executablePath) {
+			return executablePath;
+		}
+	}
+
+	return '';
+}
+
+/**
  * アプリ名と一般的なWindowsタイトル形式を照合する
  * @param {string} expected 登録アプリ名
  * @param {string} actual ウィンドウタイトル
@@ -122,13 +251,16 @@ function matchesProfileWindowTitle(
 		return false;
 	}
 
-	const titleSegments = normalizeIdentity(processInfo.windowTitle)
+	const titleSegments  = normalizeIdentity(processInfo.windowTitle)
 		.split(/\s+[-\u2013\u2014]\s+/u)
 		.map((value) => value.trim())
 		.filter(Boolean);
-	const profileNames  = new Set(app.profileNames.map(normalizeIdentity).filter(Boolean));
+	const profileNames   = new Set(app.profileNames.map(normalizeIdentity).filter(Boolean));
+	const profileSegment = titleSegments.length >= 2
+		? titleSegments[titleSegments.length - 2]
+		: '';
 
-	return titleSegments.some((segment) => profileNames.has(segment));
+	return Boolean(profileSegment) && profileNames.has(profileSegment);
 }
 
 /**
@@ -183,7 +315,9 @@ export function matchRunningAppIds(
 				break;
 			}
 
-			if (app.windowTitle && matchesWindowTitle(app.windowTitle, processInfo.windowTitle)) {
+			if (app.windowTitle
+				&& (app.executablePath || !app.appUserModelId)
+				&& matchesWindowTitle(app.windowTitle, processInfo.windowTitle)) {
 				result.add(app.id);
 				break;
 			}

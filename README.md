@@ -4,6 +4,11 @@
 
 公開配布リポジトリ: [TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release](https://github.com/TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release)
 
+## v1.7.4 の主な変更
+
+- 起動中アプリのハイライト判定を改善し、bat 経由の Firefox Developer Edition、Edge のプロファイル別ウィンドウ、Outlook classic / New Outlook の誤判定を修正しました。
+- Outlook classic の残留プロセスがある場合、表示ウィンドウがあれば前面化し、ウィンドウがない場合は確認後に残留プロセスを終了して再起動できるようにしました。
+
 ## v1.7.2 の主な変更
 
 - GUI アプリの起動を ShellExecute 経由に変更し、サクラエディタなど未保存確認ダイアログが出ない不具合を修正しました。

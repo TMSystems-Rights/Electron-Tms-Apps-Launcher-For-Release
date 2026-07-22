@@ -1,10 +1,16 @@
 import { Buffer } from 'node:buffer';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
-import { app, shell } from 'electron';
+import { app, dialog, shell } from 'electron';
 import type { BrowserWindow } from 'electron';
 import { logger } from './logger';
 import { isValidExecutablePath, normalizeExecutablePath, pathExists, readShortcut } from './native';
+import {
+	getOutlookClassicLaunchAction,
+	isOutlookClassicExecutable,
+	runOutlookClassicGuard,
+} from './outlook-classic';
+import type { OutlookClassicGuardResult } from './outlook-classic';
 import type { LaunchResult } from './types';
 
 /** execFile / spawn 単体では直接起動できない拡張子 */
@@ -24,6 +30,15 @@ const DIRECT_GUI_EXECUTABLES = new Set([
 	'msedge.exe',
 	'msedge_proxy.exe',
 ]);
+
+/** 実際の起動・処理方式 */
+type LaunchVia = 'runas' | 'direct' | 'shellexecute' | 'shortcut-runas' | 'foreground';
+
+/** Outlook classic 起動前ガードの結果 */
+type OutlookClassicPrelaunchResult =
+	| { action: 'continue' }
+	| { action: 'activated'; guardResult: OutlookClassicGuardResult }
+	| { action: 'cancelled'; guardResult: OutlookClassicGuardResult };
 
 /**
  * ショートカット起動用 VBS スクリプトのパス
@@ -47,6 +62,18 @@ function getLaunchExeScriptPath(): string {
 	}
 
 	return path.join(app.getAppPath(), 'resources', 'launch-exe.vbs');
+}
+
+/**
+ * Outlook classic guard 用 PowerShell スクリプトのパス
+ * @returns {string} PowerShell パス
+ */
+function getOutlookClassicGuardScriptPath(): string {
+	if (app.isPackaged) {
+		return path.join(process.resourcesPath, 'outlook-classic-guard.ps1');
+	}
+
+	return path.join(app.getAppPath(), 'resources', 'outlook-classic-guard.ps1');
 }
 
 /**
@@ -295,6 +322,175 @@ function isConsoleScriptTarget(targetPath: string): boolean {
  */
 function shouldLaunchGuiDirectly(targetPath: string): boolean {
 	return DIRECT_GUI_EXECUTABLES.has(path.basename(targetPath).toLowerCase());
+}
+
+/**
+ * Outlook classic の残留プロセス終了確認を表示する
+ * @param {BrowserWindow} win メインウィンドウ
+ * @param {OutlookClassicGuardResult} guardResult guard 結果
+ * @returns {Promise<boolean>} 再起動を続行するなら true
+ */
+async function confirmTerminateOutlookClassic(
+	win: BrowserWindow,
+	guardResult: OutlookClassicGuardResult,
+): Promise<boolean> {
+	const processIds = guardResult.processIds.join(', ');
+	const result     = await dialog.showMessageBox(win, {
+		type     : 'warning',
+		buttons  : ['終了して再起動', 'キャンセル'],
+		defaultId: 1,
+		cancelId : 1,
+		noLink   : true,
+		title    : 'Outlook の残留プロセス',
+		message  : 'Outlook のプロセスは残っていますが、表示中のウィンドウが見つかりません。',
+		detail   : [
+			'未保存のメールや同期処理がある場合はキャンセルしてください。',
+			`残留プロセスを終了して Outlook を再起動しますか？${processIds ? `\nPID: ${processIds}` : ''}`,
+		].join('\n'),
+	});
+
+	return result.response === 0;
+}
+
+/**
+ * Outlook classic の可視ウィンドウを前面化する
+ * @param {string} scriptPath guard スクリプト
+ * @param {string} sourcePath ランチャー登録パス
+ * @param {string} targetPath 起動対象パス
+ * @returns {Promise<OutlookClassicPrelaunchResult>} 起動前処理結果
+ */
+async function activateOutlookClassicWindow(
+	scriptPath: string,
+	sourcePath: string,
+	targetPath: string,
+): Promise<OutlookClassicPrelaunchResult> {
+	const guardResult = await runOutlookClassicGuard(scriptPath, 'activate');
+
+	if (guardResult.windows.length === 0) {
+		logger.warn('Outlook classic window disappeared before activation', {
+			path      : sourcePath,
+			target    : targetPath,
+			processIds: guardResult.processIds,
+		});
+		return { action: 'continue' };
+	}
+
+	logger.info('Outlook classic window activation requested', {
+		path     : sourcePath,
+		target   : targetPath,
+		activated: guardResult.activated,
+		window   : guardResult.activatedWindow,
+	});
+
+	return { action: 'activated', guardResult };
+}
+
+/**
+ * Outlook classic の残留プロセスを終了する
+ * @param {string} scriptPath guard スクリプト
+ * @param {string} sourcePath ランチャー登録パス
+ * @param {string} targetPath 起動対象パス
+ * @returns {Promise<OutlookClassicPrelaunchResult>} 起動前処理結果
+ */
+async function terminateOutlookClassicResidualProcess(
+	scriptPath: string,
+	sourcePath: string,
+	targetPath: string,
+): Promise<OutlookClassicPrelaunchResult> {
+	const guardResult = await runOutlookClassicGuard(scriptPath, 'terminate');
+
+	if (guardResult.windows.length > 0) {
+		logger.info('Outlook classic window appeared before termination', {
+			path      : sourcePath,
+			target    : targetPath,
+			processIds: guardResult.processIds,
+		});
+		return activateOutlookClassicWindow(scriptPath, sourcePath, targetPath);
+	}
+
+	if (guardResult.errors.length > 0 || guardResult.remainingProcessIds.length > 0) {
+		throw new Error([
+			'Outlook の残留プロセスを終了できませんでした。',
+			guardResult.remainingProcessIds.length > 0
+				? `残存 PID: ${guardResult.remainingProcessIds.join(', ')}`
+				: '',
+			guardResult.errors.join('\n'),
+		].filter(Boolean).join('\n'));
+	}
+
+	logger.info('Outlook classic residual process terminated', {
+		path                : sourcePath,
+		target              : targetPath,
+		terminatedProcessIds: guardResult.terminatedProcessIds,
+	});
+
+	return { action: 'continue' };
+}
+
+/**
+ * Outlook classic 起動前に、既存ウィンドウ前面化または残留プロセス確認を行う
+ * @param {BrowserWindow} win メインウィンドウ
+ * @param {string} sourcePath ランチャー登録パス
+ * @param {string} targetPath 起動対象パス
+ * @returns {Promise<OutlookClassicPrelaunchResult>} 起動前処理結果
+ */
+async function handleOutlookClassicBeforeLaunch(
+	win: BrowserWindow,
+	sourcePath: string,
+	targetPath: string,
+): Promise<OutlookClassicPrelaunchResult> {
+	if (process.platform !== 'win32' || !isOutlookClassicExecutable(targetPath)) {
+		return { action: 'continue' };
+	}
+
+	const scriptPath = getOutlookClassicGuardScriptPath();
+
+	if (!pathExists(scriptPath)) {
+		logger.warn('Outlook classic guard script not found', {
+			path  : sourcePath,
+			target: targetPath,
+			scriptPath,
+		});
+		return { action: 'continue' };
+	}
+
+	let guardResult: OutlookClassicGuardResult;
+
+	try {
+		guardResult = await runOutlookClassicGuard(scriptPath, 'inspect');
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+
+		logger.warn('Outlook classic guard failed', {
+			path  : sourcePath,
+			target: targetPath,
+			error : message,
+		});
+		return { action: 'continue' };
+	}
+
+	const action = getOutlookClassicLaunchAction(guardResult);
+
+	if (action === 'activate') {
+		return activateOutlookClassicWindow(scriptPath, sourcePath, targetPath);
+	}
+
+	if (action === 'confirm-restart') {
+		const confirmed = await confirmTerminateOutlookClassic(win, guardResult);
+
+		if (!confirmed) {
+			logger.info('Outlook classic residual restart cancelled', {
+				path      : sourcePath,
+				target    : targetPath,
+				processIds: guardResult.processIds,
+			});
+			return { action: 'cancelled', guardResult };
+		}
+
+		return terminateOutlookClassicResidualProcess(scriptPath, sourcePath, targetPath);
+	}
+
+	return { action: 'continue' };
 }
 
 /**
@@ -596,11 +792,11 @@ export async function launchApp(
 	}
 
 	try {
-		const ext                                                                 = path.extname(normalizedPath).toLowerCase();
-		const startedAt                                                           = Date.now();
-		let   readMs                                                              = 0;
-		let   targetPath                                                          = normalizedPath;
-		let   launchedVia: 'runas' | 'direct' | 'shellexecute' | 'shortcut-runas' = 'direct';
+		const ext                    = path.extname(normalizedPath).toLowerCase();
+		const startedAt              = Date.now();
+		let   readMs                 = 0;
+		let   targetPath             = normalizedPath;
+		let   launchedVia: LaunchVia = 'direct';
 
 		if (runAsAdmin) {
 			launchedVia = 'runas';
@@ -616,14 +812,29 @@ export async function launchApp(
 			readMs = Date.now() - readStart;
 
 			if (shortcut?.target) {
-				targetPath  = shortcut.target;
-				launchedVia = await launchResolvedTarget(
+				targetPath = shortcut.target;
+
+				const prelaunchResult = await handleOutlookClassicBeforeLaunch(
+					win,
+					normalizedPath,
 					shortcut.target,
-					args || shortcut.args,
-					workingDir || shortcut.cwd,
-					appName,
-					runAsAdmin,
 				);
+
+				if (prelaunchResult.action === 'cancelled') {
+					return { success: true };
+				}
+
+				if (prelaunchResult.action === 'activated') {
+					launchedVia = 'foreground';
+				} else {
+					launchedVia = await launchResolvedTarget(
+						shortcut.target,
+						args || shortcut.args,
+						workingDir || shortcut.cwd,
+						appName,
+						runAsAdmin,
+					);
+				}
 			} else {
 				// ターゲットを解決できない（UWP/PIDL 形式等）場合のみ ShellExecute にフォールバックする。
 				if (runAsAdmin) {
@@ -635,13 +846,27 @@ export async function launchApp(
 				}
 			}
 		} else {
-			launchedVia = await launchResolvedTarget(
+			const prelaunchResult = await handleOutlookClassicBeforeLaunch(
+				win,
 				normalizedPath,
-				args,
-				workingDir,
-				appName,
-				runAsAdmin,
+				normalizedPath,
 			);
+
+			if (prelaunchResult.action === 'cancelled') {
+				return { success: true };
+			}
+
+			if (prelaunchResult.action === 'activated') {
+				launchedVia = 'foreground';
+			} else {
+				launchedVia = await launchResolvedTarget(
+					normalizedPath,
+					args,
+					workingDir,
+					appName,
+					runAsAdmin,
+				);
+			}
 		}
 
 		applyLaunchBehavior(win, launchBehavior);

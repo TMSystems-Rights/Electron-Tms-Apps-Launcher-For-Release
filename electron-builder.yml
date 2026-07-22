@@ -16,6 +16,8 @@ extraResources:
     to: launch-exe.vbs
   - from: resources/get-taskbar-apps.ps1
     to: get-taskbar-apps.ps1
+  - from: resources/outlook-classic-guard.ps1
+    to: outlook-classic-guard.ps1
   - from: resources/get-shortcut-identity.ps1
     to: get-shortcut-identity.ps1
 artifactName: TmsAppLauncher-${version}-setup.${ext}

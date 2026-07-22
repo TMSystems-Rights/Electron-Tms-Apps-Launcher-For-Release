@@ -6,6 +6,7 @@ import { logger } from './logger';
 import { normalizeExecutablePath, readShortcut } from './native';
 import {
 	areSameAppIds,
+	getBatchLaunchExecutable,
 	getProfileDirectory,
 	isWindowsAppAliasPath,
 	matchRunningAppIds,
@@ -280,6 +281,27 @@ function getScriptPath(target: string, args: string): string {
 }
 
 /**
+ * batch から代表的な起動 exe を抽出する
+ * @param {string} scriptPath batch パス
+ * @returns {string} 起動 exe パス
+ */
+function getScriptLaunchExecutable(scriptPath: string): string {
+	const extension = path.extname(scriptPath).toLowerCase();
+
+	if (extension !== '.bat' && extension !== '.cmd') {
+		return '';
+	}
+
+	try {
+		const executablePath = getBatchLaunchExecutable(fs.readFileSync(scriptPath, 'utf8'));
+
+		return executablePath && fs.existsSync(executablePath) ? executablePath : '';
+	} catch {
+		return '';
+	}
+}
+
+/**
  * ChromiumのLocal Stateからプロファイル表示名を取得する
  * @param {string} executablePath ブラウザ実行パス
  * @param {string} profileDirectory プロファイルディレクトリ
@@ -409,16 +431,18 @@ class RunningAppsMonitor {
 			if (path.extname(target).toLowerCase() === '.exe') {
 				const shortcutArgs     = shortcut?.args ?? '';
 				const scriptPath       = getScriptPath(target, shortcutArgs);
+				const scriptExecutable = getScriptLaunchExecutable(scriptPath);
+				const executablePath   = scriptExecutable || target;
 				const profileDirectory = getProfileDirectory(shortcutArgs);
 
 				return {
 					id                        : launcherApp.id,
 					name                      : launcherApp.name,
-					executablePath            : target,
-					allowAliasFileNameFallback: isWindowsAppAliasPath(target, localAppData),
+					executablePath,
+					allowAliasFileNameFallback: isWindowsAppAliasPath(executablePath, localAppData),
 					profileDirectory,
 					profileNames              : getChromiumProfileNames(
-						target,
+						executablePath,
 						profileDirectory,
 						localAppData,
 					),
