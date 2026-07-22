@@ -32,6 +32,21 @@ function Test-PathUnderDirectory {
 	return $normalizedExecutable.StartsWith($normalizedDirectory, [StringComparison]::OrdinalIgnoreCase)
 }
 
+function Test-CommandLineReferencesDirectory {
+	param(
+		[string]$CommandLine,
+		[string]$DirectoryPath
+	)
+
+	if ([string]::IsNullOrWhiteSpace($CommandLine)) {
+		return $false
+	}
+
+	$normalizedDirectory = [System.IO.Path]::GetFullPath($DirectoryPath)
+
+	return $CommandLine.IndexOf($normalizedDirectory, [StringComparison]::OrdinalIgnoreCase) -ge 0
+}
+
 function Test-AppAsarReplaceable {
 	param([string]$AppAsarPath)
 
@@ -61,9 +76,15 @@ $appAsar = Join-Path $releaseRoot "$version\win-unpacked\resources\app.asar"
 
 foreach ($processName in @('TmsAppLauncher', 'electron')) {
 	Get-CimInstance Win32_Process -Filter "Name='$processName.exe'" -ErrorAction SilentlyContinue |
-		Where-Object { Test-PathUnderDirectory $_.ExecutablePath $releaseRoot } |
 		ForEach-Object {
-			$issues.Add("$processName.exe が release 配下から起動中です (PID $($_.ProcessId)): $($_.ExecutablePath)")
+			if (Test-PathUnderDirectory $_.ExecutablePath $releaseRoot) {
+				$issues.Add("$processName.exe が release 配下から起動中です (PID $($_.ProcessId)): $($_.ExecutablePath)")
+			} elseif (
+				(Test-PathUnderDirectory $_.ExecutablePath $ProjectRoot) -or
+				(Test-CommandLineReferencesDirectory $_.CommandLine $ProjectRoot)
+			) {
+				$issues.Add("$processName.exe がテスト/動作確認後に残っています (PID $($_.ProcessId)): $($_.ExecutablePath)")
+			}
 		}
 }
 
@@ -82,14 +103,16 @@ if ($issues.Count -gt 0) {
 	Write-Host ''
 	Write-Host '想定される原因（エクスプローラーで release を開いていなくても発生します）:'
 	Write-Host '  - Cursor 等 IDE がワークスペース内の release を監視している'
+	Write-Host '  - テスト／動作確認で起動したランチャーや Electron が残っている'
 	Write-Host '  - ウイルス対策（F-Secure / NURO SAFE 等）のリアルタイムスキャン'
 	Write-Host '  - Windows Search のインデックス作成'
 	Write-Host ''
 	Write-Host '対処（ファイル削除は不要）:'
 	Write-Host '  1. 本リポジトリに .cursorignore（release/ 除外）を追加済み。Cursor を再起動すると効果が出ます'
-	Write-Host '  2. ウイルス対策の除外リストに release フォルダを追加する'
-	Write-Host '  3. release 配下から起動したランチャー／Electron があれば終了する'
-	Write-Host '  4. 動作確認は setup.exe でインストールした版を使う'
+	Write-Host '  2. テスト／動作確認で起動した TmsAppLauncher.exe / electron.exe があれば終了する'
+	Write-Host '  3. ウイルス対策の除外リストに release フォルダを追加する'
+	Write-Host '  4. release 配下から起動したランチャー／Electron があれば終了する'
+	Write-Host '  5. 動作確認は setup.exe でインストールした版を使う'
 	Write-Host ''
 	exit 1
 }
