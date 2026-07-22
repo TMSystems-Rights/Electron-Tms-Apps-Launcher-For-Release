@@ -1,6 +1,6 @@
 {
 	"name": "tms-app-launcher",
-	"version": "1.7.2",
+	"version": "1.7.3",
 	"description": "起動アプリをグループ分け整理し表示するアプリ起動ランチャー",
 	"main": "dist/main/main.js",
 	"scripts": {

@@ -19,6 +19,12 @@ const CONSOLE_INTERPRETERS = new Set([
 	'cscript.exe',
 ]);
 
+/** Edge はプロファイル起動を自前の broker が処理するため、v1.7.1 と同じ direct 起動にする */
+const DIRECT_GUI_EXECUTABLES = new Set([
+	'msedge.exe',
+	'msedge_proxy.exe',
+]);
+
 /**
  * ショートカット起動用 VBS スクリプトのパス
  * @returns {string} VBS パス
@@ -283,6 +289,15 @@ function isConsoleScriptTarget(targetPath: string): boolean {
 }
 
 /**
+ * ShellExecute ヘルパーではなく direct 起動を使う GUI 実行ファイルか判定する
+ * @param {string} targetPath 実行パス
+ * @returns {boolean} direct 起動対象なら true
+ */
+function shouldLaunchGuiDirectly(targetPath: string): boolean {
+	return DIRECT_GUI_EXECUTABLES.has(path.basename(targetPath).toLowerCase());
+}
+
+/**
  * start コマンドのタイトルに使える安全な文字列へ整形する
  * （ダブルクォート・パーセント・改行は cmd の解釈を壊すため除去）
  * @param {string} name アプリ名
@@ -472,6 +487,11 @@ async function launchResolvedTarget(
 		return 'direct';
 	}
 
+	if (shouldLaunchGuiDirectly(targetPath)) {
+		await spawnDetached(targetPath, argList, cwd);
+		return 'direct';
+	}
+
 	// GUI の .exe 等は ShellExecute で起動する（CreateProcess 直起動だと
 	// 未保存確認などのモーダルが前面に出ない／閉じられない症状が出ることがある）。
 	await launchExecutableViaShell(targetPath, args, cwd);
@@ -531,7 +551,7 @@ async function launchExecutableViaShell(
 		throw new Error(`Executable launcher script not found: ${scriptPath}`);
 	}
 
-	await spawnDetached(
+	await spawnAndWait(
 		'wscript.exe',
 		['//B', '//Nologo', scriptPath, targetPath, args || '', cwd || ''],
 		undefined,
