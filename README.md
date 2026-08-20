@@ -4,6 +4,10 @@
 
 公開配布リポジトリ: [TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release](https://github.com/TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release)
 
+## v1.8.1 の主な変更
+
+- バージョン番号のみ更新しました。機能変更はありません。
+
 ## v1.8.0 の主な変更
 
 - 既存の NSIS インストーラ版に加え、インストール不要の完全ポータブル ZIP 版を追加しました。
