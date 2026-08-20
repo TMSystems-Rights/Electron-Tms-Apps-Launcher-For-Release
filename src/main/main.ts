@@ -8,8 +8,10 @@ import {
 	setMainWindow,
 } from './ipc';
 import { logger } from './logger';
+import { PORTABLE_APP_USER_MODEL_ID } from './portable-mode';
+import { applyPortableRuntimeIfNeeded, getPortableExeDir, isPortableRuntime } from './portable-runtime';
 import { getCachedData, loadLauncherData } from './store';
-import { initAutoUpdater, setAutoUpdaterWindow } from './updater';
+import { initUpdater, setAutoUpdaterWindow } from './updater';
 import { getAppIconPath } from './icon';
 import {
 	applyTitleBarOverlay,
@@ -38,6 +40,10 @@ let mainWindow: BrowserWindow | null = null;
  * @returns {void}
  */
 function configureDevUserData(): void {
+	if (isPortableRuntime()) {
+		return;
+	}
+
 	if (!app.isPackaged) {
 		app.setPath(
 			'userData',
@@ -70,6 +76,10 @@ function registerGlobalErrorHandlers(): void {
  * @returns {string} AppUserModelID
  */
 function resolveAppUserModelId(): string {
+	if (isPortableRuntime()) {
+		return PORTABLE_APP_USER_MODEL_ID;
+	}
+
 	return app.isPackaged ? PACKAGED_APP_USER_MODEL_ID : DEV_APP_USER_MODEL_ID;
 }
 
@@ -236,10 +246,19 @@ function requestSingleInstance(): boolean {
  * @returns {void}
  */
 function bootstrap(): void {
+	applyPortableRuntimeIfNeeded();
 	configureDevUserData();
 	app.setAppUserModelId(resolveAppUserModelId());
 	registerGlobalErrorHandlers();
 	logger.init();
+
+	if (isPortableRuntime()) {
+		logger.info('Portable mode enabled', {
+			exeDir  : getPortableExeDir(),
+			userData: app.getPath('userData'),
+			dataDir : app.getPath('userData'),
+		});
+	}
 	registerIpcHandlers();
 
 	if (!requestSingleInstance()) {
@@ -248,7 +267,7 @@ function bootstrap(): void {
 
 	app.whenReady().then(() => {
 		const win = createMainWindow();
-		initAutoUpdater(win);
+		initUpdater(win);
 
 		app.on('activate', () => {
 			if (BrowserWindow.getAllWindows().length === 0) {

@@ -521,6 +521,14 @@ Object.assign(TMS_AL.ScreenMain, {
 	 */
 	HandleUpdateStatus: function (payload) {
 		if (payload.type === 'available') {
+			if (payload.mode === 'portable') {
+				TMS_AL_COMMON.Ui.ShowToast(
+					`新しいバージョン v${payload.version} があります。公式ページからポータブル ZIP 版をダウンロードしてください。`,
+					'info',
+				);
+				return;
+			}
+
 			TMS_AL_COMMON.Ui.ShowToast(
 				`新しいバージョン v${payload.version} をダウンロードしています…`,
 				'info',

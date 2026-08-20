@@ -18,6 +18,7 @@ import {
 	persistCurrentWindowSize,
 	saveLauncherData,
 } from './store';
+import { isPortableRuntime } from './portable-runtime';
 import type { AppContextMenuAction, LauncherData, LaunchAppPayload } from './types';
 import type { LogLevel } from './logger';
 import {
@@ -300,6 +301,13 @@ export function registerIpcHandlers(): void {
 	});
 
 	ipcMain.handle('config:migrateDataDir', (_event, newDir: string) => {
+		if (isPortableRuntime()) {
+			return {
+				success: false,
+				error  : 'ポータブル版ではデータ保存先を変更できません。',
+			};
+		}
+
 		if (!newDir || typeof newDir !== 'string') {
 			return {
 				success: false,

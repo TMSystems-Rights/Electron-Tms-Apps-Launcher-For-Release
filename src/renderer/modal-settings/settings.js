@@ -11,6 +11,9 @@ TMS_AL.ScreenModalSettings = {
 	/** @type {string} */
 	_defaultDataDir: '',
 
+	/** @type {boolean} */
+	_isPortable: false,
+
 	/** @type {import('../../main/types').LauncherSettings | null} */
 	_defaultSettings: null,
 
@@ -193,8 +196,10 @@ TMS_AL.ScreenModalSettings = {
 
 		TMS_AL.ScreenModalSettings._dataDir         = config.dataDir;
 		TMS_AL.ScreenModalSettings._defaultDataDir  = config.defaultDataDir;
+		TMS_AL.ScreenModalSettings._isPortable      = config.isPortable === true;
 		TMS_AL.ScreenModalSettings._defaultSettings = defaultSettings;
 		TMS_AL.ScreenModalSettings._windowLimits    = windowLimits;
+		TMS_AL.ScreenModalSettings.UpdateDataDirSectionVisibility();
 	},
 
 	/**
@@ -334,6 +339,20 @@ TMS_AL.ScreenModalSettings = {
 	},
 
 	/**
+	 * ポータブル版ではデータ保存先 UI を非表示にする
+	 * @returns {void}
+	 */
+	UpdateDataDirSectionVisibility: function () {
+		const row = document.getElementById('tmsAlSettingsDataDirRow');
+
+		if (!row) {
+			return;
+		}
+
+		row.hidden = TMS_AL.ScreenModalSettings._isPortable;
+	},
+
+	/**
 	 * 未分類ペイン設定セクションの表示を切り替える
 	 * @returns {void}
 	 */
@@ -410,6 +429,10 @@ TMS_AL.ScreenModalSettings = {
 	 * @returns {Promise<void>}
 	 */
 	FlushPendingDataDirChange: async function () {
+		if (TMS_AL.ScreenModalSettings._isPortable) {
+			return;
+		}
+
 		const dataDirEl = document.getElementById('tmsAlSettingsDataDir');
 
 		if (!(dataDirEl instanceof HTMLInputElement)) {
@@ -450,6 +473,14 @@ TMS_AL.ScreenModalSettings = {
 			}
 
 			if (result.status === 'available') {
+				if (result.mode === 'portable') {
+					TMS_AL_COMMON.Ui.ShowToast(
+						`新しいバージョン v${result.version ?? ''} が見つかりました。公式ページからポータブル ZIP 版をダウンロードしてください。`,
+						'info',
+					);
+					return;
+				}
+
 				TMS_AL_COMMON.Ui.ShowToast(
 					`新しいバージョン v${result.version ?? ''} が見つかりました。ダウンロードを開始します。`,
 					'info',
@@ -706,6 +737,10 @@ TMS_AL.ScreenModalSettings = {
 	 * @returns {Promise<void>}
 	 */
 	ApplyDataDirChange: async function () {
+		if (TMS_AL.ScreenModalSettings._isPortable) {
+			return;
+		}
+
 		const dataDirEl = document.getElementById('tmsAlSettingsDataDir');
 
 		if (!(dataDirEl instanceof HTMLInputElement)) {
@@ -747,6 +782,10 @@ TMS_AL.ScreenModalSettings = {
 	 * @returns {Promise<void>}
 	 */
 	BrowseDataDir: async function () {
+		if (TMS_AL.ScreenModalSettings._isPortable) {
+			return;
+		}
+
 		const selected = await window.launcherApi.openDirectoryDialog();
 
 		if (!selected) {
@@ -814,6 +853,10 @@ TMS_AL.ScreenModalSettings = {
 	 * @returns {Promise<void>}
 	 */
 	ResetDataDir: async function () {
+		if (TMS_AL.ScreenModalSettings._isPortable) {
+			return;
+		}
+
 		const defaultDir = TMS_AL.ScreenModalSettings._defaultDataDir;
 
 		if (defaultDir === TMS_AL.ScreenModalSettings._dataDir) {
@@ -849,7 +892,8 @@ TMS_AL.ScreenModalSettings = {
 			return;
 		}
 
-		const needsDataDirReset = TMS_AL.ScreenModalSettings._dataDir !== TMS_AL.ScreenModalSettings._defaultDataDir;
+		const needsDataDirReset = !TMS_AL.ScreenModalSettings._isPortable
+			&& TMS_AL.ScreenModalSettings._dataDir !== TMS_AL.ScreenModalSettings._defaultDataDir;
 		let message = 'すべての設定を既定値に戻します。よろしいですか？';
 
 		if (needsDataDirReset) {

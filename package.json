@@ -1,6 +1,6 @@
 {
 	"name": "tms-app-launcher",
-	"version": "1.7.4",
+	"version": "1.8.0",
 	"description": "起動アプリをグループ分け整理し表示するアプリ起動ランチャー",
 	"main": "dist/main/main.js",
 	"scripts": {
@@ -14,6 +14,7 @@
 		"predist:publish": "pwsh -NoProfile -File scripts/ensure-dist-ready.ps1",
 		"dist": "npm run build && electron-builder",
 		"dist:publish": "npm run build && electron-builder --publish always",
+		"package:portable": "pwsh -NoProfile -File scripts/package-portable.ps1",
 		"icon:build": "pwsh scripts/build-icon.ps1",
 		"lint": "eslint . && npm run format:renderer:check",
 		"lint:fix": "eslint . --fix && npm run format:renderer",
@@ -24,9 +25,10 @@
 		"test:running-apps": "npm run build:ts && node scripts/test-running-apps.mjs",
 		"test:icon-cache": "npm run build:ts && node scripts/run-electron-test.mjs scripts/test-icon-cache.mjs",
 		"test:update-error": "npm run build:ts && node scripts/test-update-error.mjs",
+		"test:portable": "npm run build:ts && node scripts/test-portable.mjs",
 		"test:row-drag": "npm run build && node scripts/run-electron-test.mjs scripts/test-row-drag.mjs",
 		"test:ui": "npm run build && node scripts/run-electron-test.mjs scripts/test-ui.mjs",
-		"test": "npm run test:search && npm run test:running-apps && npm run test:icon-cache && npm run test:update-error && npm run test:row-drag && npm run test:ui"
+		"test": "npm run test:search && npm run test:running-apps && npm run test:icon-cache && npm run test:update-error && npm run test:portable && npm run test:row-drag && npm run test:ui"
 	},
 	"repository": {
 		"type": "git",

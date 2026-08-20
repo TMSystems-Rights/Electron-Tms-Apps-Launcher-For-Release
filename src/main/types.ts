@@ -129,6 +129,7 @@ export interface AppVersionInfo {
 export interface ConfigInfo {
 	dataDir: string;
 	defaultDataDir: string;
+	isPortable: boolean;
 }
 
 /** dataDir 移行結果 */
@@ -152,18 +153,22 @@ export interface WindowSize {
 	height: number;
 }
 
+/** 更新確認の配布形態 */
+export type UpdateDistributionMode = 'installer' | 'portable';
+
 /** 手動更新確認結果 */
 export interface UpdateCheckResult {
 	status: 'not-packaged' | 'available' | 'not-available' | 'error';
 	version?: string;
 	currentVersion?: string;
 	error?: string;
+	mode?: UpdateDistributionMode;
 }
 
 /** レンダラーへ通知する更新状態 */
 export type UpdateStatusPayload =
 	| { type: 'checking' }
-	| { type: 'available'; version: string }
+	| { type: 'available'; version: string; mode?: UpdateDistributionMode }
 	| { type: 'not-available' }
 	| { type: 'download-progress'; percent: number }
 	| { type: 'downloaded'; version: string }

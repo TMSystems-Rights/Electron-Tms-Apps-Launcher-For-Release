@@ -4,6 +4,12 @@
 
 公開配布リポジトリ: [TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release](https://github.com/TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release)
 
+## v1.8.0 の主な変更
+
+- 既存の NSIS インストーラ版に加え、インストール不要の完全ポータブル ZIP 版を追加しました。
+- ポータブル版は展開先の `data` フォルダへ設定・ログを保存し、顧客端末の `%APPDATA%` へは書き込みません。
+- ポータブル版の更新は自動インストールせず、GitHub Releases の最新版を確認して公式ページへ案内します。
+
 ## v1.7.4 の主な変更
 
 - 起動中アプリのハイライト判定を改善し、bat 経由の Firefox Developer Edition、Edge のプロファイル別ウィンドウ、Outlook classic / New Outlook の誤判定を修正しました。
@@ -74,13 +80,19 @@ TypeScript コンパイル + renderer 静的ファイルコピー:
 npm run build
 ```
 
-## 配布パッケージ作成（Windows インストーラ）
+## 配布パッケージ作成（Windows インストーラ / ポータブル ZIP）
 
 ```powershell
 npm run dist
+npm run package:portable
 ```
 
-出力先: `release/<version>/TmsAppLauncher-<version>-setup.exe`（例: `release/1.2.2/TmsAppLauncher-1.2.2-setup.exe`）
+出力先:
+
+- インストーラ: `release/<version>/TmsAppLauncher-<version>-setup.exe`
+- ポータブル ZIP: `release/<version>/TmsAppLauncher-<version>-portable-x64.zip`
+
+`npm run dist` は NSIS インストーラと `win-unpacked` を生成します。ポータブル ZIP は `electron-builder` の `zip` ターゲットでは作らず、`npm run package:portable` が `win-unpacked` を `TMS-AppsLauncher` 親フォルダごと固めて SHA-256 を出力します。
 
 `npm run dist` / `npm run dist:publish` 実行前に、`scripts/ensure-dist-ready.ps1` が `app.asar` の**上書き可否**（rename テスト）を検査します。問題があればビルド開始前に中止します（ファイルの削除は行いません）。
 
@@ -109,7 +121,9 @@ pwsh -NoProfile -File scripts/remove-orphan-build-dir.ps1
 
 ### 自動アップデート
 
-パッケージ版は起動約 5 秒後に GitHub Releases を確認し、新バージョンがあればバックグラウンドでダウンロードします。ダウンロード完了後に再起動確認ダイアログが表示されます。設定画面の「更新を確認」から手動確認もできます。
+インストーラ版は起動約 5 秒後に GitHub Releases を確認し、新バージョンがあればバックグラウンドでダウンロードします。ダウンロード完了後に再起動確認ダイアログが表示されます。設定画面の「更新を確認」から手動確認もできます。
+
+ポータブル ZIP 版は `electron-updater` を使いません。同じタイミングで GitHub Releases API の `tag_name` だけを比較し、新しい版があれば公式ページへ誘導します。ZIP の自動置換は行いません。
 
 #### リリース手順
 
@@ -126,13 +140,14 @@ AI（Cursor 等）がリリース作業を行う場合は、`.cursor/rules/relea
 5. 変更を **git commit** する（バージョン更新を含むすべての変更）
 6. **git push origin main** する
 7. `git status` が clean で、`HEAD` と `origin/main` が一致していることを確認する
-8. **`npm run dist`** でローカル成果物を生成する
-9. GitHub Release に同一ビルドの成果物 3 点を公開する
-10. **タグの一致を確認する**（下記「公開後の確認」）
+8. **`npm run dist`** でインストーラ成果物を生成する
+9. **`npm run package:portable`** でポータブル ZIP と SHA-256 を生成する
+10. GitHub Release に同一ビルドの成果物 5 点を公開する
+11. **タグの一致を確認する**（下記「公開後の確認」）
 
 > **重要**: `npm run dist` / `npm run dist:publish` は **commit と push の後**に実行すること。未コミットの作業ツリーからビルドすると、インストーラは新内容でも Git タグが古いコミットを指し、ソースと Release の対応がずれる。タグの付け直し（`git tag -f` / `git push -f`）が必要になる場合がある。
 
-通常のリリースでは `npm run dist:publish` は使わず、`npm run dist` で生成した 3 点を `gh release create/upload` で公開します。`dist:publish` を実行してしまった場合は、`.cursor/rules/release_workflow.mdc` の復旧手順に従い、assets 3 点とタグを検証してください。
+通常のリリースでは `npm run dist:publish` は使わず、`npm run dist` と `npm run package:portable` で生成した 5 点を `gh release create/upload` で公開します。`dist:publish` を実行してしまった場合は、`.cursor/rules/release_workflow.mdc` の復旧手順に従い、assets とタグを検証してください。
 
 ##### dist 前の確認
 
@@ -162,15 +177,17 @@ Get-CimInstance Win32_Process |
 
 ##### 必須成果物
 
-`npm run dist` 後、`release/<version>/` に次の 3 点があることを確認します。
+`npm run dist` のあと `npm run package:portable` を実行し、`release/<version>/` に次の 5 点があることを確認します。
 
-| ファイル                                      | 用途                                          |
-| --------------------------------------------- | --------------------------------------------- |
-| `TmsAppLauncher-<version>-setup.exe`          | NSIS インストーラ                             |
-| `TmsAppLauncher-<version>-setup.exe.blockmap` | 差分更新用                                    |
-| `latest.yml`                                  | electron-updater が参照する最新バージョン情報 |
+| ファイル                                         | 用途                                          |
+| ------------------------------------------------ | --------------------------------------------- |
+| `TmsAppLauncher-<version>-setup.exe`             | NSIS インストーラ                             |
+| `TmsAppLauncher-<version>-setup.exe.blockmap`    | 差分更新用                                    |
+| `latest.yml`                                     | electron-updater が参照する最新バージョン情報 |
+| `TmsAppLauncher-<version>-portable-x64.zip`      | ポータブル ZIP                                |
+| `TmsAppLauncher-<version>-portable-x64.zip.sha256` | ZIP の SHA-256（sha256sum 形式）            |
 
-`latest.yml` は同じ `npm run dist` で生成された `setup.exe` の `sha512` と `size` を持ちます。`npm run dist` を再実行した場合は、必ず上記 3 点を同じ実行結果でまとめて公開し直してください。
+`latest.yml` は同じ `npm run dist` で生成された `setup.exe` の `sha512` と `size` を持ちます。ポータブル ZIP は `latest.yml` に載せません。`npm run dist` を再実行した場合は、必ず setup.exe / blockmap / latest.yml を同じ実行結果でまとめ、その `win-unpacked` から ZIP も作り直して公開し直してください。
 
 ##### GitHub Release 公開
 
@@ -186,18 +203,22 @@ gh release create $tag `
 	"$releaseDir\TmsAppLauncher-$version-setup.exe" `
 	"$releaseDir\TmsAppLauncher-$version-setup.exe.blockmap" `
 	"$releaseDir\latest.yml" `
+	"$releaseDir\TmsAppLauncher-$version-portable-x64.zip" `
+	"$releaseDir\TmsAppLauncher-$version-portable-x64.zip.sha256" `
 	--repo $repo `
 	--title $tag `
 	--notes "TMS-AppsLauncher $tag"
 ```
 
-既存 Release の asset を差し替える場合は、同じ 3 点を `--clobber` でまとめて上書きします。
+既存 Release の asset を差し替える場合は、同じ 5 点を `--clobber` でまとめて上書きします。
 
 ```powershell
 gh release upload $tag `
 	"$releaseDir\TmsAppLauncher-$version-setup.exe" `
 	"$releaseDir\TmsAppLauncher-$version-setup.exe.blockmap" `
 	"$releaseDir\latest.yml" `
+	"$releaseDir\TmsAppLauncher-$version-portable-x64.zip" `
+	"$releaseDir\TmsAppLauncher-$version-portable-x64.zip.sha256" `
 	--repo $repo `
 	--clobber
 ```
@@ -212,8 +233,9 @@ gh release view v<version> `
 	--json assets,url,tagName
 ```
 
-- **確認すべきこと**: Release に setup.exe / blockmap / latest.yml の 3 点が揃っている
+- **確認すべきこと**: Release に setup.exe / blockmap / latest.yml / portable ZIP / sha256 の 5 点が揃っている
 - **確認すべきこと**: `latest.yml` の `sha512` と `size` が同じビルドで生成した `setup.exe` と対応している
+- **確認すべきこと**: `.sha256` が同じ ZIP の SHA-256 と一致している
 - **注意**: public 配布リポジトリにソースコミットを mirror しない場合、Release の tag は配布リポジトリ側の tag として扱う
 
 タグ不一致が起きる仕組み: リリース作成時の `--target` が意図したコミットと違う、または未コミット状態からビルド / 公開すると、タグと成果物の対応がずれます。public 配布リポジトリに private 側の commit SHA が存在しない場合、その SHA を `gh release create --target` に渡さないでください。
@@ -238,7 +260,8 @@ Get-CimInstance Win32_Process |
 	} |
 	Select-Object ProcessId,Name,ExecutablePath,CommandLine
 npm run dist
-# gh release create/upload で setup.exe / blockmap / latest.yml を公開
+npm run package:portable
+# gh release create/upload で setup.exe / blockmap / latest.yml / portable ZIP / sha256 を公開
 gh release view v1.x.x --repo TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release --json assets,url,tagName
 ```
 
@@ -252,7 +275,7 @@ Remove-Item Env:GH_TOKEN
 
 **v1.2.2 以前**（v1.2.0 / v1.2.1）をお使いの場合は、自動更新が動作しないため **v1.2.2 へ手動インストール**してください。v1.2.2 以降は自動更新が利用できます。
 
-部分公開のまま終了しないでください。特に `latest.yml` が無い、または `latest.yml` の `sha512` が公開済み `setup.exe` と違う状態では自動更新が壊れます。
+部分公開のまま終了しないでください。特に `latest.yml` が無い、または `latest.yml` の `sha512` が公開済み `setup.exe` と違う状態では自動更新が壊れます。ポータブル ZIP を公開する場合は、同じビルドの ZIP と `.sha256` も揃えてください。
 
 ### インストーラの仕様
 
@@ -264,6 +287,17 @@ Remove-Item Env:GH_TOKEN
 | 対象           | Windows 11 64bit                                                               |
 
 インストール後、データは `%APPDATA%\tms-app-launcher\` に保存されます（開発版の `tms-app-launcher-dev` とは別です）。
+
+### ポータブル ZIP の仕様
+
+| 項目     | 内容                                                                 |
+| -------- | -------------------------------------------------------------------- |
+| 形式     | `TMS-AppsLauncher` フォルダを含む ZIP                                |
+| 起動     | 展開後に `TmsAppLauncher.exe` を直接実行                             |
+| 判定     | exe と同じフォルダの `portable-mode.json`（削除禁止）                |
+| データ   | exe と同じ階層の `data\`（`data\data\` にはしない）                  |
+| 更新     | 公式ページへ誘導。自動ダウンロードしない                             |
+| 保存先UI | 非表示。展開先外へは変更できない                                     |
 
 ## Lint
 
@@ -290,7 +324,7 @@ HTML は Prettier 設定（`.prettierrc.json`）、CSS は VS Code 標準 CSS fo
 npm test
 ```
 
-検索、起動中アプリ照合、行ドラッグ、Renderer統合を一時プロファイル上で検証します。通常のユーザーデータと開発用データは変更しません。
+検索、起動中アプリ照合、ポータブル判定／更新確認、行ドラッグ、Renderer統合を一時プロファイル上で検証します。通常のユーザーデータと開発用データは変更しません。
 
 ## プロジェクト構成
 
@@ -307,13 +341,26 @@ src/
 
 ## データ保存先
 
+インストーラ版 / 開発版:
+
 | 種別                 | パス                                         |
 | -------------------- | -------------------------------------------- |
 | ブートストラップ設定 | `%APPDATA%\tms-app-launcher\app-config.json` |
 | 実データ             | `<dataDir>\launcher-data.json`               |
 | ログ                 | `%APPDATA%\tms-app-launcher\logs\`           |
 
-開発時（未パッケージ）は `%APPDATA%\tms-app-launcher-dev\` を使用します。
+開発時（未パッケージ）は `%APPDATA%\tms-app-launcher-dev\` を使用します。既定の `dataDir` は `userData\data` です。
+
+ポータブル ZIP 版:
+
+| 種別                 | パス                                      |
+| -------------------- | ----------------------------------------- |
+| 判定ファイル         | `<exeDir>\portable-mode.json`             |
+| ブートストラップ設定 | `<exeDir>\data\app-config.json`           |
+| 実データ             | `<exeDir>\data\launcher-data.json`        |
+| ログ                 | `<exeDir>\data\logs\`                     |
+
+ポータブル版の `dataDir` は `userData`（`<exeDir>\data`）と同じです。書き込みできない場合は `%APPDATA%` へ逃がさず終了します。
 
 ### データ保存先の変更について
 
@@ -321,6 +368,7 @@ src/
 - 設定画面のパス欄は **フォーカスを外す・参照ボタン・「閉じる」** のタイミングで反映されます（入力だけでは未保存のことがあります）
 - **既に `launcher-data.json` があるフォルダ**を指定した場合、既存データを上書きせずそのデータを読み込みます（開発用データフォルダの共有向け）
 - 開発版（`npm run dev`）とインストール版は **別の app-config** を使うため、データフォルダを共有するには上記の設定変更が必要です
+- ポータブル版では保存先変更 UI を出さず、exe 隣の `data` に固定します
 
 ## 仕様書
 

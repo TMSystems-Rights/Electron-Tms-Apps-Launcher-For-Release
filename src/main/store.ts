@@ -4,17 +4,16 @@ import { randomUUID } from 'node:crypto';
 import type { BrowserWindow } from 'electron';
 import { app } from 'electron';
 import { logger } from './logger';
+import { resolveDefaultDataDir } from './portable-mode';
+import { isPortableRuntime } from './portable-runtime';
 import { clampWindowSize, getWindowSizeLimits } from './window';
-import type { AppConfig, LauncherData, LauncherPane, LauncherSettings, LoadDataResult, MigrateDataDirResult, PaneCount, SaveResult } from './types';
+import type { AppConfig, ConfigInfo, LauncherData, LauncherPane, LauncherSettings, LoadDataResult, MigrateDataDirResult, PaneCount, SaveResult } from './types';
 
 /** 現行スキーマバージョン */
 export const CURRENT_SCHEMA_VERSION = 1;
 
 /** バックアップ保持世代数 */
 const BACKUP_RETENTION_COUNT = 10;
-
-/** デフォルト dataDir（%APPDATA%\tms-app-launcher\data） */
-const DEFAULT_DATA_DIR_NAME = 'data';
 
 /** デフォルトの launcher-data */
 export function createDefaultLauncherData(): LauncherData {
@@ -167,7 +166,7 @@ export function getAppConfigPath(): string {
  * @returns {string} 絶対パス
  */
 export function getDefaultDataDir(): string {
-	return path.join(app.getPath('userData'), DEFAULT_DATA_DIR_NAME);
+	return resolveDefaultDataDir(app.getPath('userData'), isPortableRuntime());
 }
 
 /**
@@ -175,6 +174,10 @@ export function getDefaultDataDir(): string {
  * @returns {AppConfig} 設定
  */
 export function loadAppConfig(): AppConfig {
+	if (isPortableRuntime()) {
+		return loadPortableAppConfig();
+	}
+
 	const configPath = getAppConfigPath();
 
 	if (!fs.existsSync(configPath)) {
@@ -195,6 +198,43 @@ export function loadAppConfig(): AppConfig {
 	}
 
 	return parsed;
+}
+
+/**
+ * ポータブル版の app-config を読み込む。dataDir は常に userData へ固定する。
+ * @returns {AppConfig} 設定
+ */
+function loadPortableAppConfig(): AppConfig {
+	const portableDataDir   = getDefaultDataDir();
+	const config: AppConfig = {
+		schemaVersion: CURRENT_SCHEMA_VERSION,
+		dataDir      : portableDataDir,
+	};
+	const configPath        = getAppConfigPath();
+
+	if (!fs.existsSync(configPath)) {
+		saveAppConfig(config);
+		return config;
+	}
+
+	try {
+		const parsed = JSON.parse(fs.readFileSync(configPath, 'utf8')) as AppConfig;
+
+		if (parsed.dataDir && path.resolve(parsed.dataDir) !== path.resolve(portableDataDir)) {
+			logger.warn('Ignoring non-portable dataDir in portable mode', {
+				ignored: parsed.dataDir,
+				dataDir: portableDataDir,
+			});
+			saveAppConfig(config);
+		}
+	} catch (error) {
+		logger.warn('Failed to parse portable app-config.json', {
+			error: error instanceof Error ? error.message : String(error),
+		});
+		saveAppConfig(config);
+	}
+
+	return config;
 }
 
 /**
@@ -474,12 +514,13 @@ export function getDefaultSettings(): LauncherSettings {
  * app-config 参照情報を取得する
  * @returns {{ dataDir: string; defaultDataDir: string }} 設定情報
  */
-export function getConfigInfo(): { dataDir: string; defaultDataDir: string } {
+export function getConfigInfo(): ConfigInfo {
 	const config = loadAppConfig();
 
 	return {
 		dataDir       : config.dataDir,
 		defaultDataDir: getDefaultDataDir(),
+		isPortable    : isPortableRuntime(),
 	};
 }
 
@@ -489,6 +530,13 @@ export function getConfigInfo(): { dataDir: string; defaultDataDir: string } {
  * @returns {MigrateDataDirResult} 移行結果
  */
 export function migrateDataDir(newDir: string): MigrateDataDirResult {
+	if (isPortableRuntime()) {
+		return {
+			success: false,
+			error  : 'ポータブル版ではデータ保存先を変更できません。',
+		};
+	}
+
 	const normalized = path.resolve(newDir.trim());
 
 	if (!normalized) {

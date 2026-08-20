@@ -19,9 +19,10 @@ alwaysApply: true
 5. **git commit --trailer "Co-authored-by: Cursor <cursoragent@cursor.com>"**（バージョン更新と変更をすべて含める）
 6. **git push origin main**
 7. `git status` が clean で、`HEAD` と `origin/main` が一致していることを確認する
-8. **`npm run dist`** でローカル成果物を生成する
-9. GitHub Release に同一ビルドの成果物 3 点を公開する
-10. **タグの一致を確認する**（下記「公開後の確認」）
+8. **`npm run dist`** でインストーラ成果物を生成する
+9. **`npm run package:portable`** でポータブル ZIP と SHA-256 を生成する
+10. GitHub Release に同一ビルドの成果物 5 点を公開する
+11. **タグの一致を確認する**（下記「公開後の確認」）
 
 ## テスト後のプロセス終了確認
 
@@ -57,13 +58,15 @@ Get-CimInstance Win32_Process |
 
 ## 必須成果物
 
-`npm run dist` 後、`release/<version>/` に次の 3 点があることを確認する。
+`npm run dist` のあと `npm run package:portable` を実行し、`release/<version>/` に次の 5 点があることを確認する。
 
 - `TmsAppLauncher-<version>-setup.exe`
 - `TmsAppLauncher-<version>-setup.exe.blockmap`
 - `latest.yml`
+- `TmsAppLauncher-<version>-portable-x64.zip`
+- `TmsAppLauncher-<version>-portable-x64.zip.sha256`
 
-`latest.yml` は同じ `npm run dist` で生成された `setup.exe` の `sha512` と `size` を持つ。`npm run dist` を再実行した場合は、**必ず setup.exe / blockmap / latest.yml の 3 点を同じ実行結果でまとめて公開し直す**。
+`latest.yml` は同じ `npm run dist` で生成された `setup.exe` の `sha512` と `size` を持つ。ポータブル ZIP は `latest.yml` に載せない。`npm run dist` を再実行した場合は、**必ず setup.exe / blockmap / latest.yml の 3 点を同じ実行結果でまとめ、その `win-unpacked` から ZIP も作り直して公開し直す**。
 
 ## GitHub Release 公開
 
@@ -81,6 +84,8 @@ if ($LASTEXITCODE -eq 0) {
 		"$releaseDir\TmsAppLauncher-$version-setup.exe" `
 		"$releaseDir\TmsAppLauncher-$version-setup.exe.blockmap" `
 		"$releaseDir\latest.yml" `
+		"$releaseDir\TmsAppLauncher-$version-portable-x64.zip" `
+		"$releaseDir\TmsAppLauncher-$version-portable-x64.zip.sha256" `
 		--repo $repo `
 		--clobber
 } else {
@@ -88,13 +93,15 @@ if ($LASTEXITCODE -eq 0) {
 		"$releaseDir\TmsAppLauncher-$version-setup.exe" `
 		"$releaseDir\TmsAppLauncher-$version-setup.exe.blockmap" `
 		"$releaseDir\latest.yml" `
+		"$releaseDir\TmsAppLauncher-$version-portable-x64.zip" `
+		"$releaseDir\TmsAppLauncher-$version-portable-x64.zip.sha256" `
 		--repo $repo `
 		--title $tag `
 		--notes "TMS-AppsLauncher $tag"
 }
 ```
 
-公開後、GitHub Release の assets に次の 3 点が揃っていることを確認する。
+公開後、GitHub Release の assets に次の 5 点が揃っていることを確認する。
 
 ```powershell
 gh release view $tag --repo $repo --json assets,url,tagName
@@ -116,8 +123,9 @@ gh release view v<version> `
 	--json assets,url,tagName
 ```
 
-- **確認すべきこと**: Release に setup.exe / blockmap / latest.yml の 3 点が揃っている
+- **確認すべきこと**: Release に setup.exe / blockmap / latest.yml / portable ZIP / sha256 の 5 点が揃っている
 - **確認すべきこと**: `latest.yml` の `sha512` と `size` が同じビルドで生成した `setup.exe` と対応している
+- **確認すべきこと**: `.sha256` が同じ ZIP の SHA-256 と一致している
 - **注意**: public 配布リポジトリにソースコミットを mirror しない場合、Release の tag は配布リポジトリ側の tag として扱う
 
 ### タグ不一致が起きる仕組み
@@ -136,9 +144,9 @@ public 配布リポジトリに private 側の commit SHA が存在しない場�
 
 1. `git status` が clean で、`HEAD` と `origin/main` が一致していることを確認する
 2. `gh release view v<version> --repo TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release --json assets,url,tagName` で Release 状態を確認する
-3. `npm run dist` を実行し、`release/<version>/` に setup.exe / blockmap / latest.yml を同一ビルドで生成し直す
-4. `gh release upload v<version> ... --clobber` で 3 点をまとめて上書きする
-5. `gh release view v<version> --repo TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release --json assets,url,tagName` で 3 点が揃っていることを確認する
+3. `npm run dist` を実行し、続けて `npm run package:portable` で ZIP を同一の `win-unpacked` から生成し直す
+4. `gh release upload v<version> ... --clobber` で 5 点をまとめて上書きする
+5. `gh release view v<version> --repo TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release --json assets,url,tagName` で 5 点が揃っていることを確認する
 
 部分公開のまま終了してはいけない。特に `latest.yml` が無い、または `latest.yml` の `sha512` が公開済み `setup.exe` と違う状態では自動更新が壊れる。
 
@@ -148,7 +156,7 @@ public 配布リポジトリに private 側の commit SHA が存在しない場�
     - 未コミットの作業ツリーからビルドすると、インストーラは新内容でも Git タグが古いコミットを指し、ソースと Release の対応がずれる
     - タグの付け直し（`git tag -f` / `git push -f`）が必要になる
 - `npm run dist:publish` を通常手順として使わない
-    - 使ってしまった場合は、上記「`dist:publish` が途中失敗した場合」に従い、assets 3 点とタグを検証する
+    - 使ってしまった場合は、上記「`dist:publish` が途中失敗した場合」に従い、assets 5 点とタグを検証する
 - テスト・動作確認で起動したランチャーウィンドウを残したまま `npm run dist` しない
     - `node_modules/electron` 由来の dev/test プロセスでも、ビルド中の `app.asar` や一時フォルダをロックすることがある
 - `electron-builder.yml` に `publish.private` や `publish.token` を戻さない
@@ -178,6 +186,7 @@ Get-CimInstance Win32_Process |
 	Select-Object ProcessId,Name,ExecutablePath,CommandLine
 
 npm run dist
+npm run package:portable
 
 $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
 $tag = "v$version"
@@ -188,6 +197,8 @@ gh release create $tag `
 	"$releaseDir\TmsAppLauncher-$version-setup.exe" `
 	"$releaseDir\TmsAppLauncher-$version-setup.exe.blockmap" `
 	"$releaseDir\latest.yml" `
+	"$releaseDir\TmsAppLauncher-$version-portable-x64.zip" `
+	"$releaseDir\TmsAppLauncher-$version-portable-x64.zip.sha256" `
 	--repo $repo `
 	--title $tag `
 	--notes "TMS-AppsLauncher $tag"

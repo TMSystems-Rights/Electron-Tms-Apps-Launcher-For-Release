@@ -1,6 +1,19 @@
-import { app, BrowserWindow, dialog } from 'electron';
+import { app, BrowserWindow, dialog, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
+import {
+	fetchLatestReleaseTag,
+	isNewerRelease,
+	normalizeVersionTag,
+} from './github-release';
 import { logger } from './logger';
+import { resolveUpdateCheckMode } from './portable-mode';
+import { isPortableRuntime } from './portable-runtime';
+import {
+	getOfficialPortalUrl,
+	isAllowedOfficialPortalUrl,
+	PORTAL_ENV_VARIABLE_NAME,
+	resolvePortalEnvironment,
+} from './portal-url';
 import type { UpdateCheckResult, UpdateStatusPayload } from './types';
 
 /** 起動直後の更新チェック待機時間（ms） */
@@ -24,6 +37,152 @@ export function formatUpdateErrorMessage(message: string): string {
 	}
 
 	return `アップデートのダウンロードに失敗しました: ${message}`;
+}
+
+/**
+ * ポータブル版の更新確認失敗メッセージ
+ * @param {string} message 生エラー
+ * @returns {string} 表示用メッセージ
+ */
+export function formatPortableUpdateErrorMessage(message: string): string {
+	return `最新バージョンの確認に失敗しました: ${message}`;
+}
+
+/**
+ * 公式ダウンロードページを許可リスト検証のうえ開く
+ * @returns {Promise<void>}
+ */
+export async function openOfficialDownloadPage(): Promise<void> {
+	const environment = resolvePortalEnvironment({
+		isPackaged: app.isPackaged,
+		envValue  : process.env[PORTAL_ENV_VARIABLE_NAME],
+	});
+	const url         = getOfficialPortalUrl(environment);
+
+	if (!isAllowedOfficialPortalUrl(url)) {
+		logger.error('Refusing to open unapproved portal URL', { url });
+		return;
+	}
+
+	await shell.openExternal(url);
+}
+
+/**
+ * ポータブル版の更新案内ダイアログを表示する
+ * @param {string} latestVersion 最新バージョン
+ * @param {string} currentVersion 現在バージョン
+ * @returns {Promise<void>}
+ */
+async function promptPortableUpdate(latestVersion: string, currentVersion: string): Promise<void> {
+	const options = {
+		type     : 'info' as const,
+		title    : '新しいバージョンがあります',
+		message  : `TMS-AppsLauncher v${latestVersion} が公開されています。`,
+		detail   : [
+			`現在のバージョンは v${currentVersion} です。`,
+			'更新する場合は、公式ページからポータブル ZIP 版をダウンロードしてください。',
+			'更新前に TMS-AppsLauncher を終了し、既存の data フォルダを新しいバージョンへ引き継いでください。',
+		].join('\n'),
+		buttons  : ['公式ダウンロードページを開く', '後で'],
+		defaultId: 0,
+		cancelId : 1,
+		noLink   : true,
+	};
+	const result  = mainWindow
+		? await dialog.showMessageBox(mainWindow, options)
+		: await dialog.showMessageBox(options);
+
+	if (result.response === 0) {
+		await openOfficialDownloadPage();
+	}
+}
+
+/**
+ * GitHub Releases API でポータブル版の更新を確認する
+ * @param {{ notifyUserOnError: boolean; promptIfAvailable: boolean }} options 通知方針
+ * @returns {Promise<UpdateCheckResult>} 確認結果
+ */
+async function checkPortableUpdate(options: {
+	notifyUserOnError: boolean;
+	promptIfAvailable: boolean;
+}): Promise<UpdateCheckResult> {
+	const currentVersion = app.getVersion();
+
+	notifyRenderer({ type: 'checking' });
+
+	try {
+		const latestTag     = await fetchLatestReleaseTag();
+		const latestVersion = normalizeVersionTag(latestTag);
+
+		if (!isNewerRelease(latestTag, currentVersion)) {
+			logger.info('Portable application is up to date', {
+				currentVersion,
+				latestVersion,
+			});
+			notifyRenderer({ type: 'not-available' });
+
+			return {
+				status        : 'not-available',
+				currentVersion,
+				mode          : 'portable',
+			};
+		}
+
+		logger.info('Portable application update available', {
+			currentVersion,
+			latestVersion,
+		});
+		notifyRenderer({
+			type   : 'available',
+			version: latestVersion,
+			mode   : 'portable',
+		});
+
+		if (options.promptIfAvailable) {
+			await promptPortableUpdate(latestVersion, currentVersion);
+		}
+
+		return {
+			status        : 'available',
+			version       : latestVersion,
+			currentVersion,
+			mode          : 'portable',
+		};
+	} catch (error) {
+		const message   = error instanceof Error ? error.message : String(error);
+		const formatted = formatPortableUpdateErrorMessage(message);
+
+		logger.warn('Portable update check failed', { error: message });
+
+		if (options.notifyUserOnError) {
+			notifyRenderer({ type: 'error', message: formatted });
+		}
+
+		return {
+			status        : 'error',
+			currentVersion,
+			error         : formatted,
+			mode          : 'portable',
+		};
+	}
+}
+
+/**
+ * ポータブル版の更新確認を初期化する。electron-updater は使わない。
+ * @param {BrowserWindow} win メインウィンドウ
+ * @returns {void}
+ */
+function initPortableUpdateChecker(win: BrowserWindow): void {
+	mainWindow = win;
+
+	logger.info('Portable update checker initialized (GitHub Releases API)');
+
+	setTimeout(() => {
+		void checkPortableUpdate({
+			notifyUserOnError: false,
+			promptIfAvailable: true,
+		});
+	}, STARTUP_CHECK_DELAY_MS);
 }
 
 /**
@@ -103,13 +262,34 @@ function registerAutoUpdaterEvents(): void {
 }
 
 /**
- * 自動更新を初期化する（パッケージ版のみ）
+ * 配布形態に応じて更新確認を初期化する
  * @param {BrowserWindow} win メインウィンドウ
  * @returns {void}
  */
-export function initAutoUpdater(win: BrowserWindow): void {
-	if (!app.isPackaged) {
+export function initUpdater(win: BrowserWindow): void {
+	const mode = resolveUpdateCheckMode(app.isPackaged, isPortableRuntime());
+
+	if (mode === 'github-release-api') {
+		initPortableUpdateChecker(win);
+		return;
+	}
+
+	if (mode === 'disabled') {
 		logger.info('Auto-update is disabled in development mode');
+		return;
+	}
+
+	initAutoUpdater(win);
+}
+
+/**
+ * インストーラ版の自動更新を初期化する
+ * @param {BrowserWindow} win メインウィンドウ
+ * @returns {void}
+ */
+function initAutoUpdater(win: BrowserWindow): void {
+	if (isPortableRuntime() || !app.isPackaged) {
+		logger.warn('Refusing to initialize electron-updater');
 		return;
 	}
 
@@ -154,10 +334,19 @@ export function setAutoUpdaterWindow(win: BrowserWindow | null): void {
  * @returns {Promise<UpdateCheckResult>} 確認結果
  */
 export function checkForUpdatesManual(): Promise<UpdateCheckResult> {
-	if (!app.isPackaged) {
+	const mode = resolveUpdateCheckMode(app.isPackaged, isPortableRuntime());
+
+	if (mode === 'disabled') {
 		return Promise.resolve({
 			status        : 'not-packaged',
 			currentVersion: app.getVersion(),
+		});
+	}
+
+	if (mode === 'github-release-api') {
+		return checkPortableUpdate({
+			notifyUserOnError: true,
+			promptIfAvailable: true,
 		});
 	}
 
@@ -175,6 +364,7 @@ export function checkForUpdatesManual(): Promise<UpdateCheckResult> {
 			resolve({
 				status        : 'not-available',
 				currentVersion: app.getVersion(),
+				mode          : 'installer',
 			});
 		};
 
@@ -185,6 +375,7 @@ export function checkForUpdatesManual(): Promise<UpdateCheckResult> {
 				status        : 'available',
 				version       : info.version,
 				currentVersion: app.getVersion(),
+				mode          : 'installer',
 			});
 		};
 
@@ -197,6 +388,7 @@ export function checkForUpdatesManual(): Promise<UpdateCheckResult> {
 				status        : 'error',
 				currentVersion: app.getVersion(),
 				error         : formatted,
+				mode          : 'installer',
 			});
 		};
 
@@ -214,6 +406,7 @@ export function checkForUpdatesManual(): Promise<UpdateCheckResult> {
 				status        : 'error',
 				currentVersion: app.getVersion(),
 				error         : formatted,
+				mode          : 'installer',
 			});
 		});
 	});
