@@ -162,6 +162,32 @@ app.whenReady().then(async () => {
 			defaultPrevented: contextEvents[0]?.defaultPrevented,
 		};
 
+		const groupDev = document.querySelector('[data-group-id="g-dev"]');
+		const groupChat = document.querySelector('[data-group-id="g-chat"]');
+		const addFromDevBtn = groupDev?.querySelector('[data-action="add-app"]');
+		const addFromChatBtn = groupChat?.querySelector('[data-action="add-app"]');
+		const groupDevExpandedBefore = groupDev?.classList.contains('tms-al-group--expanded');
+		addFromChatBtn?.click();
+		const addFromChat = {
+			modalVisible: !document.getElementById('tmsAlModalEdit')?.hidden,
+			title: document.getElementById('tmsAlModalEditTitle')?.textContent,
+			groupId: document.getElementById('tmsAlEditGroupId')?.value,
+		};
+		TMS_AL.ScreenModalEdit.Close();
+		addFromDevBtn?.click();
+		const addFromDev = {
+			modalVisible: !document.getElementById('tmsAlModalEdit')?.hidden,
+			groupId: document.getElementById('tmsAlEditGroupId')?.value,
+			groupToggled: groupDev?.classList.contains('tms-al-group--expanded') !== groupDevExpandedBefore,
+		};
+		TMS_AL.ScreenModalEdit.Close();
+		document.getElementById('tmsAlBtnAdd')?.click();
+		const addFromFooter = {
+			modalVisible: !document.getElementById('tmsAlModalEdit')?.hidden,
+			title: document.getElementById('tmsAlModalEditTitle')?.textContent,
+		};
+		TMS_AL.ScreenModalEdit.Close();
+
 		await TMS_AL.Theme.Apply('dark');
 		return {
 			initial,
@@ -175,6 +201,9 @@ app.whenReady().then(async () => {
 			modalWindowFocus,
 			running,
 			contextMenu,
+			addFromChat,
+			addFromDev,
+			addFromFooter,
 			darkTheme: document.body.classList.contains('tms-al-theme-dark'),
 		};
 	})()`);
@@ -212,6 +241,14 @@ app.whenReady().then(async () => {
 		&& result.contextMenu.count === 1
 		&& result.contextMenu.appId === 'a-code'
 		&& result.contextMenu.defaultPrevented
+		&& result.addFromChat.modalVisible
+		&& result.addFromChat.title === 'アプリを追加'
+		&& result.addFromChat.groupId === 'g-chat'
+		&& result.addFromDev.modalVisible
+		&& result.addFromDev.groupId === 'g-dev'
+		&& !result.addFromDev.groupToggled
+		&& result.addFromFooter.modalVisible
+		&& result.addFromFooter.title === 'アプリを追加'
 		&& result.darkTheme;
 
 	if (!passed) {

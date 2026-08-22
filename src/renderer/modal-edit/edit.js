@@ -124,9 +124,10 @@ TMS_AL.ScreenModalEdit = {
 
 	/**
 	 * 新規モードで開く
+	 * @param {string} [groupId] 事前選択する所属グループID
 	 * @returns {void}
 	 */
-	OpenNew: function () {
+	OpenNew: function (groupId) {
 		TMS_AL.ScreenModalEdit._mode           = 'new';
 		TMS_AL.ScreenModalEdit._editingAppId   = null;
 		TMS_AL.ScreenModalEdit._iconMode       = 'auto';
@@ -139,7 +140,7 @@ TMS_AL.ScreenModalEdit = {
 		}
 
 		TMS_AL.ScreenModalEdit.ResetForm();
-		TMS_AL.ScreenModalEdit.PopulateGroupDropdown();
+		TMS_AL.ScreenModalEdit.PopulateGroupDropdown(groupId);
 		TMS_AL.ScreenModalEdit.Show();
 	},
 

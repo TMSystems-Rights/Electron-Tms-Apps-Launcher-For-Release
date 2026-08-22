@@ -1559,14 +1559,14 @@ Object.assign(TMS_AL.ScreenMain, {
 			? '<span class="tms-al-group__toggle"></span>'
 			: '<span class="tms-al-group__drag-handle tms-al-group__toggle" title="ドラッグで並べ替え">⠿</span>';
 
-		const groupActions = group.isUncategorized
-			? ''
-			: [
-				'<span class="tms-al-group__actions">',
-				'<button class="tms-al-btn tms-al-btn--small" type="button" data-action="rename">改名</button>',
-				'<button class="tms-al-btn tms-al-btn--small tms-al-btn--danger" type="button" data-action="delete">削除</button>',
-				'</span>',
-			].join('');
+		const addAppButton = '<button class="tms-al-btn tms-al-btn--small" type="button" data-action="add-app" title="アプリを追加" aria-label="アプリを追加">＋</button>';
+		const groupActions = [
+			'<span class="tms-al-group__actions">',
+			addAppButton,
+			group.isUncategorized ? '' : '<button class="tms-al-btn tms-al-btn--small" type="button" data-action="rename">改名</button>',
+			group.isUncategorized ? '' : '<button class="tms-al-btn tms-al-btn--small tms-al-btn--danger" type="button" data-action="delete">削除</button>',
+			'</span>',
+		].join('');
 
 		const toggleIcon = isExpanded ? '▼' : '▶';
 
@@ -1599,6 +1599,15 @@ Object.assign(TMS_AL.ScreenMain, {
 				}
 
 				TMS_AL.ScreenMain.ToggleGroup(group.id);
+			});
+		}
+
+		const addAppBtn = groupEl.querySelector('[data-action="add-app"]');
+
+		if (addAppBtn) {
+			addAppBtn.addEventListener('click', (event) => {
+				event.stopPropagation();
+				TMS_AL.ScreenModalEdit.OpenNew(group.id);
 			});
 		}
 

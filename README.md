@@ -4,6 +4,11 @@
 
 公開配布リポジトリ: [TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release](https://github.com/TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release)
 
+## v1.9.0 の主な変更
+
+- グループ帯に「＋」ボタンを追加し、そのグループを所属先にした状態で「アプリを追加」画面を開けるようにしました。
+- 未分類グループからも同じ操作でアプリを追加できます。右下の「＋ 追加」は従来どおり使えます。
+
 ## v1.8.1 の主な変更
 
 - バージョン番号のみ更新しました。機能変更はありません。
