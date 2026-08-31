@@ -9,6 +9,7 @@ import { logger } from './logger';
 import { resolveUpdateCheckMode } from './portable-mode';
 import { isPortableRuntime } from './portable-runtime';
 import {
+	DEVELOPMENT_PORTAL_URL_VARIABLE_NAME,
 	getOfficialPortalUrl,
 	isAllowedOfficialPortalUrl,
 	PORTAL_ENV_VARIABLE_NAME,
@@ -53,13 +54,14 @@ export function formatPortableUpdateErrorMessage(message: string): string {
  * @returns {Promise<void>}
  */
 export async function openOfficialDownloadPage(): Promise<void> {
-	const environment = resolvePortalEnvironment({
+	const environment    = resolvePortalEnvironment({
 		isPackaged: app.isPackaged,
 		envValue  : process.env[PORTAL_ENV_VARIABLE_NAME],
 	});
-	const url         = getOfficialPortalUrl(environment);
+	const developmentUrl = process.env[DEVELOPMENT_PORTAL_URL_VARIABLE_NAME];
+	const url            = getOfficialPortalUrl(environment, developmentUrl);
 
-	if (!isAllowedOfficialPortalUrl(url)) {
+	if (!isAllowedOfficialPortalUrl(url, developmentUrl)) {
 		logger.error('Refusing to open unapproved portal URL', { url });
 		return;
 	}

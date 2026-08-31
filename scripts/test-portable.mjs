@@ -26,7 +26,6 @@ const {
 	fetchLatestReleaseTag,
 } = require(path.join(rootDir, 'dist', 'main', 'github-release.js'));
 const {
-	DEVELOPMENT_PORTAL_URL,
 	PRODUCTION_PORTAL_URL,
 	getOfficialPortalUrl,
 	isAllowedOfficialPortalUrl,
@@ -213,15 +212,17 @@ async function runPortableTests() {
 		assert.equal(resolvePortalEnvironment({ isPackaged: true }), 'production');
 		assert.equal(resolvePortalEnvironment({ isPackaged: true, envValue: 'staging' }), 'production');
 		assert.equal(resolvePortalEnvironment({ isPackaged: true, envValue: 'development' }), 'development');
-		assert.equal(getOfficialPortalUrl('development'), DEVELOPMENT_PORTAL_URL);
-		assert.equal(getOfficialPortalUrl('production'), PRODUCTION_PORTAL_URL);
-		assert.equal(isAllowedOfficialPortalUrl(DEVELOPMENT_PORTAL_URL), true);
-		assert.equal(isAllowedOfficialPortalUrl(PRODUCTION_PORTAL_URL), true);
-		assert.equal(isAllowedOfficialPortalUrl('http://tm-systems.jp/#apps'), false);
-		assert.equal(isAllowedOfficialPortalUrl('https://evil.example/#apps'), false);
-		assert.equal(isAllowedOfficialPortalUrl('https://tm-systems.jp/secret'), false);
-		assert.equal(isAllowedOfficialPortalUrl('https://tm-systems.jp/?next=https://evil.example'), false);
-		assert.equal(isAllowedOfficialPortalUrl('https://cjac3.info/030_tms-portal/#apps'), true);
+		const testDevelopmentPortalUrl = 'https://portal.dev.example/preview/#apps';
+		assert.equal(getOfficialPortalUrl('development', testDevelopmentPortalUrl), testDevelopmentPortalUrl);
+		assert.equal(getOfficialPortalUrl('development', ''), PRODUCTION_PORTAL_URL);
+		assert.equal(getOfficialPortalUrl('production', testDevelopmentPortalUrl), PRODUCTION_PORTAL_URL);
+		assert.equal(isAllowedOfficialPortalUrl(testDevelopmentPortalUrl, ''), false);
+		assert.equal(isAllowedOfficialPortalUrl(testDevelopmentPortalUrl, testDevelopmentPortalUrl), true);
+		assert.equal(isAllowedOfficialPortalUrl(PRODUCTION_PORTAL_URL, ''), true);
+		assert.equal(isAllowedOfficialPortalUrl('http://tm-systems.jp/#apps', ''), false);
+		assert.equal(isAllowedOfficialPortalUrl('https://evil.example/#apps', ''), false);
+		assert.equal(isAllowedOfficialPortalUrl('https://tm-systems.jp/secret', ''), false);
+		assert.equal(isAllowedOfficialPortalUrl('https://tm-systems.jp/?next=https://evil.example', ''), false);
 		assert.match(formatPortableUpdateErrorMessage('timeout'), /確認に失敗/);
 
 		const fakeUnpacked = path.join(tempRoot, 'win-unpacked');

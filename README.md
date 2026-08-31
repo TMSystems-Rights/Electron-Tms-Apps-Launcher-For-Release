@@ -4,6 +4,10 @@
 
 公開配布リポジトリ: [TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release](https://github.com/TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release)
 
+## v1.9.1 の主な変更
+
+- 開発ポータル URL を環境変数 `TMS_PORTAL_DEVELOPMENT_URL` へ移し、ソースから開発用ホスト名を外す
+
 ## v1.9.0 の主な変更
 
 - グループ帯に「＋」ボタンを追加し、そのグループを所属先にした状態で「アプリを追加」画面を開けるようにしました。

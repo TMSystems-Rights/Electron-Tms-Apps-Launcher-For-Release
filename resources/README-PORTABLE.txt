@@ -31,5 +31,4 @@ data フォルダは初回起動時に作成されます。配布 ZIP には含�
 自動ダウンロードや自動インストールは行いません。
 更新がある場合は、アプリが公式ページへ案内します。
 
-開発・確認用: https://cjac3.info/030_tms-portal/#apps
-本番: https://tm-systems.jp/#apps
+公式ページ: https://tm-systems.jp/#apps
