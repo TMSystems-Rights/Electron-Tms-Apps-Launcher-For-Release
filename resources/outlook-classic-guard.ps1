@@ -1,6 +1,6 @@
 param(
-    [ValidateSet('inspect', 'activate', 'terminate')]
-    [string]$Action = 'inspect'
+	[ValidateSet('inspect', 'activate', 'terminate')]
+	[string]$Action = 'inspect'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -87,69 +87,69 @@ $WS_EX_TOOLWINDOW = 0x00000080
 $DWMWA_CLOAKED = 14
 
 function Get-OutlookClassicProcesses {
-    @(
-        Get-Process -Name OUTLOOK -ErrorAction SilentlyContinue |
-            ForEach-Object {
-                [pscustomobject]@{
-                    pid = [int]$_.Id
-                }
-            }
-    )
+	@(
+		Get-Process -Name OUTLOOK -ErrorAction SilentlyContinue |
+			ForEach-Object {
+				[pscustomobject]@{
+					pid = [int]$_.Id
+				}
+			}
+	)
 }
 
 function Get-OutlookClassicWindows {
-    param(
-        [object[]]$Processes
-    )
+	param(
+		[object[]]$Processes
+	)
 
-    $pidSet = [System.Collections.Generic.HashSet[int]]::new()
-    foreach ($process in $Processes) {
-        [void]$pidSet.Add([int]$process.pid)
-    }
+	$pidSet = [System.Collections.Generic.HashSet[int]]::new()
+	foreach ($process in $Processes) {
+		[void]$pidSet.Add([int]$process.pid)
+	}
 
-    if ($pidSet.Count -eq 0) {
-        return @()
-    }
+	if ($pidSet.Count -eq 0) {
+		return @()
+	}
 
-    $windows = [System.Collections.Generic.List[object]]::new()
+	$windows = [System.Collections.Generic.List[object]]::new()
 
-    $callback = [TmsOutlookClassicGuard+EnumWindowsProc] {
-        param([IntPtr]$hWnd, [IntPtr]$lParam)
+	$callback = [TmsOutlookClassicGuard+EnumWindowsProc] {
+		param([IntPtr]$hWnd, [IntPtr]$lParam)
 
-        if (-not [TmsOutlookClassicGuard]::IsWindowVisible($hWnd)) { return $true }
+		if (-not [TmsOutlookClassicGuard]::IsWindowVisible($hWnd)) { return $true }
 
-        $extendedStyle = [TmsOutlookClassicGuard]::GetWindowLongPtr($hWnd, $GWL_EXSTYLE).ToInt64()
-        if (($extendedStyle -band $WS_EX_TOOLWINDOW) -ne 0) { return $true }
+		$extendedStyle = [TmsOutlookClassicGuard]::GetWindowLongPtr($hWnd, $GWL_EXSTYLE).ToInt64()
+		if (($extendedStyle -band $WS_EX_TOOLWINDOW) -ne 0) { return $true }
 
-        $owner = [TmsOutlookClassicGuard]::GetWindow($hWnd, $GW_OWNER)
-        if ($owner -ne [IntPtr]::Zero -and ($extendedStyle -band $WS_EX_APPWINDOW) -eq 0) {
-            return $true
-        }
+		$owner = [TmsOutlookClassicGuard]::GetWindow($hWnd, $GW_OWNER)
+		if ($owner -ne [IntPtr]::Zero -and ($extendedStyle -band $WS_EX_APPWINDOW) -eq 0) {
+			return $true
+		}
 
-        $cloaked = 0
-        $dwmResult = [TmsOutlookClassicGuard]::DwmGetWindowAttribute(
-            $hWnd,
-            $DWMWA_CLOAKED,
-            [ref]$cloaked,
-            4
-        )
-        if ($dwmResult -eq 0 -and $cloaked -ne 0) { return $true }
+		$cloaked = 0
+		$dwmResult = [TmsOutlookClassicGuard]::DwmGetWindowAttribute(
+			$hWnd,
+			$DWMWA_CLOAKED,
+			[ref]$cloaked,
+			4
+		)
+		if ($dwmResult -eq 0 -and $cloaked -ne 0) { return $true }
 
-        [uint32]$processId = 0
-        [void][TmsOutlookClassicGuard]::GetWindowThreadProcessId($hWnd, [ref]$processId)
-        if ($processId -gt 0 -and $pidSet.Contains([int]$processId)) {
-            $windows.Add([pscustomobject]@{
-                pid = [int]$processId
-                hWnd = [string]$hWnd.ToInt64()
-                windowTitle = [TmsOutlookClassicGuard]::GetTitle($hWnd)
-            })
-        }
+		[uint32]$processId = 0
+		[void][TmsOutlookClassicGuard]::GetWindowThreadProcessId($hWnd, [ref]$processId)
+		if ($processId -gt 0 -and $pidSet.Contains([int]$processId)) {
+			$windows.Add([pscustomobject]@{
+					pid         = [int]$processId
+					hWnd        = [string]$hWnd.ToInt64()
+					windowTitle = [TmsOutlookClassicGuard]::GetTitle($hWnd)
+				})
+		}
 
-        return $true
-    }
+		return $true
+	}
 
-    [void][TmsOutlookClassicGuard]::EnumWindows($callback, [IntPtr]::Zero)
-    @($windows.ToArray())
+	[void][TmsOutlookClassicGuard]::EnumWindows($callback, [IntPtr]::Zero)
+	@($windows.ToArray())
 }
 
 $processes = Get-OutlookClassicProcesses
@@ -161,46 +161,46 @@ $remainingProcessIds = [System.Collections.Generic.List[int]]::new()
 $errors = [System.Collections.Generic.List[string]]::new()
 
 if ($Action -eq 'activate' -and @($windows).Count -gt 0) {
-    $activatedWindow = @($windows | Sort-Object @{ Expression = { if ([string]::IsNullOrWhiteSpace($_.windowTitle)) { 1 } else { 0 } } } | Select-Object -First 1)[0]
-    $activated = [TmsOutlookClassicGuard]::ActivateWindow([Int64]$activatedWindow.hWnd)
+	$activatedWindow = @($windows | Sort-Object @{ Expression = { if ([string]::IsNullOrWhiteSpace($_.windowTitle)) { 1 } else { 0 } } } | Select-Object -First 1)[0]
+	$activated = [TmsOutlookClassicGuard]::ActivateWindow([Int64]$activatedWindow.hWnd)
 }
 
 if ($Action -eq 'terminate' -and @($windows).Count -eq 0) {
-    $targetProcessIds = @($processes | ForEach-Object { [int]$_.pid })
+	$targetProcessIds = @($processes | ForEach-Object { [int]$_.pid })
 
-    if ($targetProcessIds.Count -gt 0) {
-        foreach ($processId in $targetProcessIds) {
-            try {
-                Stop-Process -Id $processId -Force -ErrorAction Stop
-                [void]$terminatedProcessIds.Add($processId)
-            } catch {
-                [void]$errors.Add("PID ${processId}: $($_.Exception.Message)")
-            }
-        }
+	if ($targetProcessIds.Count -gt 0) {
+		foreach ($processId in $targetProcessIds) {
+			try {
+				Stop-Process -Id $processId -Force -ErrorAction Stop
+				[void]$terminatedProcessIds.Add($processId)
+			} catch {
+				[void]$errors.Add("PID ${processId}: $($_.Exception.Message)")
+			}
+		}
 
-        $deadline = (Get-Date).AddSeconds(5)
-        while ((Get-Date) -lt $deadline) {
-            $remaining = @(Get-Process -Id $targetProcessIds -ErrorAction SilentlyContinue)
-            if ($remaining.Count -eq 0) {
-                break
-            }
+		$deadline = (Get-Date).AddSeconds(5)
+		while ((Get-Date) -lt $deadline) {
+			$remaining = @(Get-Process -Id $targetProcessIds -ErrorAction SilentlyContinue)
+			if ($remaining.Count -eq 0) {
+				break
+			}
 
-            Start-Sleep -Milliseconds 200
-        }
+			Start-Sleep -Milliseconds 200
+		}
 
-        foreach ($process in @(Get-Process -Id $targetProcessIds -ErrorAction SilentlyContinue)) {
-            [void]$remainingProcessIds.Add([int]$process.Id)
-        }
-    }
+		foreach ($process in @(Get-Process -Id $targetProcessIds -ErrorAction SilentlyContinue)) {
+			[void]$remainingProcessIds.Add([int]$process.Id)
+		}
+	}
 }
 
 [pscustomobject]@{
-    action = $Action
-    processIds = @($processes | ForEach-Object { [int]$_.pid })
-    windows = @($windows)
-    activated = [bool]$activated
-    activatedWindow = $activatedWindow
-    terminatedProcessIds = @($terminatedProcessIds.ToArray())
-    remainingProcessIds = @($remainingProcessIds.ToArray())
-    errors = @($errors.ToArray())
+	action               = $Action
+	processIds           = @($processes | ForEach-Object { [int]$_.pid })
+	windows              = @($windows)
+	activated            = [bool]$activated
+	activatedWindow      = $activatedWindow
+	terminatedProcessIds = @($terminatedProcessIds.ToArray())
+	remainingProcessIds  = @($remainingProcessIds.ToArray())
+	errors               = @($errors.ToArray())
 } | ConvertTo-Json -Compress -Depth 4

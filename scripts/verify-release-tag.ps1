@@ -41,7 +41,6 @@ electron-builder はローカルで git tag -f しますが、リモートに同
 	Write-Host "OK: $tag -> $local $headHint"
 	Write-Host "OK: ローカルとリモートのタグ SHA が一致しています。"
 	exit 0
-}
-finally {
+} finally {
 	Pop-Location
 }

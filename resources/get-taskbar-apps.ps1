@@ -240,40 +240,40 @@ $DWMWA_CLOAKED = 14
 $windows = [System.Collections.Generic.List[object]]::new()
 
 $callback = [TmsTaskbarWindows+EnumWindowsProc] {
-    param([IntPtr]$hWnd, [IntPtr]$lParam)
+	param([IntPtr]$hWnd, [IntPtr]$lParam)
 
-    if (-not [TmsTaskbarWindows]::IsWindowVisible($hWnd)) { return $true }
+	if (-not [TmsTaskbarWindows]::IsWindowVisible($hWnd)) { return $true }
 
-    $extendedStyle = [TmsTaskbarWindows]::GetWindowLongPtr($hWnd, $GWL_EXSTYLE).ToInt64()
-    if (($extendedStyle -band $WS_EX_TOOLWINDOW) -ne 0) { return $true }
+	$extendedStyle = [TmsTaskbarWindows]::GetWindowLongPtr($hWnd, $GWL_EXSTYLE).ToInt64()
+	if (($extendedStyle -band $WS_EX_TOOLWINDOW) -ne 0) { return $true }
 
-    $owner = [TmsTaskbarWindows]::GetWindow($hWnd, $GW_OWNER)
-    if ($owner -ne [IntPtr]::Zero -and ($extendedStyle -band $WS_EX_APPWINDOW) -eq 0) {
-        return $true
-    }
+	$owner = [TmsTaskbarWindows]::GetWindow($hWnd, $GW_OWNER)
+	if ($owner -ne [IntPtr]::Zero -and ($extendedStyle -band $WS_EX_APPWINDOW) -eq 0) {
+		return $true
+	}
 
-    $cloaked = 0
-    $dwmResult = [TmsTaskbarWindows]::DwmGetWindowAttribute(
-        $hWnd,
-        $DWMWA_CLOAKED,
-        [ref]$cloaked,
-        4
-    )
-    if ($dwmResult -eq 0 -and $cloaked -ne 0) { return $true }
+	$cloaked = 0
+	$dwmResult = [TmsTaskbarWindows]::DwmGetWindowAttribute(
+		$hWnd,
+		$DWMWA_CLOAKED,
+		[ref]$cloaked,
+		4
+	)
+	if ($dwmResult -eq 0 -and $cloaked -ne 0) { return $true }
 
-    [uint32]$processId = 0
-    [void][TmsTaskbarWindows]::GetWindowThreadProcessId($hWnd, [ref]$processId)
-    if ($processId -gt 0) {
-        $appUserModelId = [TmsTaskbarWindows]::GetAppUserModelId($hWnd)
+	[uint32]$processId = 0
+	[void][TmsTaskbarWindows]::GetWindowThreadProcessId($hWnd, [ref]$processId)
+	if ($processId -gt 0) {
+		$appUserModelId = [TmsTaskbarWindows]::GetAppUserModelId($hWnd)
 
-        $windows.Add([pscustomobject]@{
-            pid = $processId
-            windowTitle = [TmsTaskbarWindows]::GetTitle($hWnd)
-            appUserModelId = $appUserModelId
-        })
-    }
+		$windows.Add([pscustomobject]@{
+				pid            = $processId
+				windowTitle    = [TmsTaskbarWindows]::GetTitle($hWnd)
+				appUserModelId = $appUserModelId
+			})
+	}
 
-    return $true
+	return $true
 }
 
 [void][TmsTaskbarWindows]::EnumWindows($callback, [IntPtr]::Zero)
@@ -281,38 +281,38 @@ $callback = [TmsTaskbarWindows+EnumWindowsProc] {
 $seen = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 $processDetails = @{}
 $result = foreach ($window in $windows) {
-    try {
-        $processKey = [string]$window.pid
-        if (-not $processDetails.ContainsKey($processKey)) {
-            $processDetails[$processKey] = [pscustomobject]@{
-                executablePath = [TmsTaskbarWindows]::GetExecutablePath($window.pid)
-                commandLine = [TmsTaskbarWindows]::GetProcessCommandLine($window.pid)
-                appUserModelId = [TmsTaskbarWindows]::GetProcessAppUserModelId($window.pid)
-            }
-        }
+	try {
+		$processKey = [string]$window.pid
+		if (-not $processDetails.ContainsKey($processKey)) {
+			$processDetails[$processKey] = [pscustomobject]@{
+				executablePath = [TmsTaskbarWindows]::GetExecutablePath($window.pid)
+				commandLine    = [TmsTaskbarWindows]::GetProcessCommandLine($window.pid)
+				appUserModelId = [TmsTaskbarWindows]::GetProcessAppUserModelId($window.pid)
+			}
+		}
 
-        $details = $processDetails[$processKey]
-        if ([string]::IsNullOrWhiteSpace($details.executablePath)) { continue }
+		$details = $processDetails[$processKey]
+		if ([string]::IsNullOrWhiteSpace($details.executablePath)) { continue }
 
-        $appUserModelId = $window.appUserModelId
-        if ([string]::IsNullOrWhiteSpace($appUserModelId)) {
-            $appUserModelId = $details.appUserModelId
-        }
+		$appUserModelId = $window.appUserModelId
+		if ([string]::IsNullOrWhiteSpace($appUserModelId)) {
+			$appUserModelId = $details.appUserModelId
+		}
 
-        $key = "$($window.pid)|$($window.windowTitle)|$appUserModelId"
-        if (-not $seen.Add($key)) { continue }
+		$key = "$($window.pid)|$($window.windowTitle)|$appUserModelId"
+		if (-not $seen.Add($key)) { continue }
 
-        [pscustomobject]@{
-            pid = [int]$window.pid
-            processName = [System.IO.Path]::GetFileNameWithoutExtension($details.executablePath)
-            executablePath = [string]$details.executablePath
-            commandLine = [string]$details.commandLine
-            windowTitle = [string]$window.windowTitle
-            appUserModelId = [string]$appUserModelId
-        }
-    } catch {
-        # Skip processes whose executable path is inaccessible.
-    }
+		[pscustomobject]@{
+			pid            = [int]$window.pid
+			processName    = [System.IO.Path]::GetFileNameWithoutExtension($details.executablePath)
+			executablePath = [string]$details.executablePath
+			commandLine    = [string]$details.commandLine
+			windowTitle    = [string]$window.windowTitle
+			appUserModelId = [string]$appUserModelId
+		}
+	} catch {
+		# Skip processes whose executable path is inaccessible.
+	}
 }
 
 @($result) | ConvertTo-Json -Compress
