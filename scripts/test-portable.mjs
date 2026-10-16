@@ -7,8 +7,8 @@ import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
-const require                              = createRequire(import.meta.url);
-const rootDir                              = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const require = createRequire(import.meta.url);
+const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const {
 	detectPortableMode,
 	isFlattenedDataDir,
