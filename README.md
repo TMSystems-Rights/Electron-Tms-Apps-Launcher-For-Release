@@ -211,30 +211,51 @@ $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
 $tag = "v$version"
 $repo = "TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release"
 $releaseDir = "release\$version"
+$originalGhToken = $env:GH_TOKEN
 
-gh release create $tag `
-	"$releaseDir\TmsAppLauncher-$version-setup.exe" `
-	"$releaseDir\TmsAppLauncher-$version-setup.exe.blockmap" `
-	"$releaseDir\latest.yml" `
-	"$releaseDir\TmsAppLauncher-$version-portable-x64.zip" `
-	"$releaseDir\TmsAppLauncher-$version-portable-x64.zip.sha256" `
-	--repo $repo `
-	--title $tag `
-	--notes "TMS-AppsLauncher $tag"
+try {
+	if ([string]::IsNullOrWhiteSpace($env:GITHUB_RELEASE_TOKEN)) {
+		throw "GITHUB_RELEASE_TOKEN が設定されていません。"
+	}
+
+	$env:GH_TOKEN = $env:GITHUB_RELEASE_TOKEN
+	gh auth status --hostname github.com
+	if ($LASTEXITCODE -ne 0) { throw "GitHub CLI の認証確認に失敗しました。" }
+
+	gh release view $tag --repo $repo *> $null
+	if ($LASTEXITCODE -eq 0) {
+		gh release upload $tag `
+			"$releaseDir\TmsAppLauncher-$version-setup.exe" `
+			"$releaseDir\TmsAppLauncher-$version-setup.exe.blockmap" `
+			"$releaseDir\latest.yml" `
+			"$releaseDir\TmsAppLauncher-$version-portable-x64.zip" `
+			"$releaseDir\TmsAppLauncher-$version-portable-x64.zip.sha256" `
+			--repo $repo `
+			--clobber
+	} else {
+		gh release create $tag `
+			"$releaseDir\TmsAppLauncher-$version-setup.exe" `
+			"$releaseDir\TmsAppLauncher-$version-setup.exe.blockmap" `
+			"$releaseDir\latest.yml" `
+			"$releaseDir\TmsAppLauncher-$version-portable-x64.zip" `
+			"$releaseDir\TmsAppLauncher-$version-portable-x64.zip.sha256" `
+			--repo $repo `
+			--title $tag `
+			--notes "TMS-AppsLauncher $tag"
+	}
+	if ($LASTEXITCODE -ne 0) { throw "GitHub Release の作成または更新に失敗しました。" }
+
+	gh release view $tag --repo $repo --json assets,url,tagName
+} finally {
+	if ($null -eq $originalGhToken) {
+		Remove-Item Env:GH_TOKEN -ErrorAction SilentlyContinue
+	} else {
+		$env:GH_TOKEN = $originalGhToken
+	}
+}
 ```
 
-既存 Release の asset を差し替える場合は、同じ 5 点を `--clobber` でまとめて上書きします。
-
-```powershell
-gh release upload $tag `
-	"$releaseDir\TmsAppLauncher-$version-setup.exe" `
-	"$releaseDir\TmsAppLauncher-$version-setup.exe.blockmap" `
-	"$releaseDir\latest.yml" `
-	"$releaseDir\TmsAppLauncher-$version-portable-x64.zip" `
-	"$releaseDir\TmsAppLauncher-$version-portable-x64.zip.sha256" `
-	--repo $repo `
-	--clobber
-```
+既存 Release の場合は、同じ5点を `--clobber` でまとめて上書きします。最後の `gh release view` の出力で必須5点が揃っていることを確認してください。
 
 ##### 公開後の確認（必須）
 
@@ -278,13 +299,7 @@ npm run package:portable
 gh release view v1.x.x --repo TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release --json assets,url,tagName
 ```
 
-Release 公開には `gh auth login` 済みの認証情報、または GitHub CLI が参照する `GH_TOKEN` / `GITHUB_TOKEN` を使用します。これらは `gh` の操作権限としてのみ使い、`electron-builder.yml` の `publish.token` には設定しません。
-
-`GITHUB_RELEASE_TOKEN` など別名の環境変数を一時的に `GH_TOKEN` へ割り当てて `gh` を実行した場合は、Release 作業完了後に必ず次を実行するか、ターミナルを閉じてください。private リポジトリ向けの読み取り専用 `GH_TOKEN` と混線させないためです。
-
-```powershell
-Remove-Item Env:GH_TOKEN
-```
+Release 公開には OS 環境変数 `GITHUB_RELEASE_TOKEN` の読み書きトークンを使用します。通常時は `GH_TOKEN` を設定せず、上記の `try` / `finally` 内だけ `GITHUB_RELEASE_TOKEN` をプロセス環境の `GH_TOKEN` へ一時割り当てします。トークンは `gh` の操作権限としてのみ使い、`electron-builder.yml` の `publish.token` には設定しません。
 
 **v1.2.2 以前**（v1.2.0 / v1.2.1）をお使いの場合は、自動更新が動作しないため **v1.2.2 へ手動インストール**してください。v1.2.2 以降は自動更新が利用できます。
 
