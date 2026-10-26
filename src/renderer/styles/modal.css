@@ -1,5 +1,18 @@
-/* モーダル共通 */
+@charset "utf-8";
+/* ==============================================
+ * モーダル、設定、トーストの配置を定義する
+ * ============================================== */
 
+/*
+ * 地色と枠線は base.css のカスタムプロパティを参照する
+ * トーストの地色とダイアログの強い影だけ、このファイルで直接指定する
+ */
+
+/* ----------------------------------------------
+ * モーダル
+ * ---------------------------------------------- */
+
+/* アプリ枠より前、トーストより後ろに重ねる */
 .tms-al-modal {
 	position: fixed;
 	inset: 0;
@@ -19,6 +32,7 @@
 	background-color: rgba(0, 0, 0, 0.45);
 }
 
+/* 背面の暗幕より前に出す */
 .tms-al-modal__dialog {
 	position: relative;
 	z-index: 1;
@@ -29,6 +43,7 @@
 	background-color: var(--tms-al-color-surface);
 	border: 1px solid var(--tms-al-color-border);
 	border-radius: var(--tms-al-radius);
+	/* 画面の影変数より強くし、ダイアログを背面から浮かせる */
 	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
@@ -37,6 +52,10 @@
 	font-size: 16px;
 	font-weight: 600;
 }
+
+/* ----------------------------------------------
+ * フォーム
+ * ---------------------------------------------- */
 
 .tms-al-form-row {
 	margin-bottom: 14px;
@@ -144,6 +163,10 @@
 .tms-al-modal__dialog--prompt {
 	width: min(400px, calc(100vw - 32px));
 }
+
+/* ----------------------------------------------
+ * 設定ダイアログ
+ * ---------------------------------------------- */
 
 .tms-al-modal__dialog--settings {
 	width: min(520px, calc(100vw - 32px));
@@ -262,6 +285,11 @@
 	line-height: 1.5;
 }
 
+/* ----------------------------------------------
+ * トースト
+ * ---------------------------------------------- */
+
+/* モーダル（1000）より前に出す */
 .tms-al-toast-container {
 	position: fixed;
 	bottom: 48px;
@@ -273,6 +301,7 @@
 	max-width: 360px;
 }
 
+/* テーマをまたいで同じ濃さにするため、変数ではなく固定色にする */
 .tms-al-toast {
 	padding: 10px 14px;
 	font-size: 13px;
@@ -287,6 +316,7 @@
 	background-color: var(--tms-al-color-danger);
 }
 
+/* 警告色はテーマ変数に無い */
 .tms-al-toast--warn {
 	background-color: #d97706;
 }

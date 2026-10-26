@@ -1,4 +1,17 @@
-/* テーマ CSS 変数（ライトモード既定） */
+@charset "utf-8";
+/* ==============================================
+ * テーマ変数とアプリ枠の配置を定義する
+ * ============================================== */
+
+/*
+ * 色、間隔、角丸、影はカスタムプロパティに置く
+ * ダークとライトの差分は、同じ変数の上書きで表す
+ */
+
+/* ----------------------------------------------
+ * 色、余白、角丸
+ * ---------------------------------------------- */
+
 :root {
 	--tms-al-color-bg: #f5f5f5;
 	--tms-al-color-surface: #ffffff;
@@ -16,7 +29,7 @@
 	--tms-al-color-preview: #2563eb;
 	--tms-al-color-search-highlight-bg: #fef08a;
 	--tms-al-color-search-highlight-text: #713f12;
-	--tms-al-font-family: "Segoe UI", "Meiryo", sans-serif;
+	--tms-al-font-family: 'Segoe UI', 'Meiryo', sans-serif;
 	--tms-al-radius: 6px;
 	--tms-al-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 	--tms-al-titlebar-height: 48px;
@@ -26,7 +39,10 @@
 	--tms-al-titlebar-inactive-text: #555555;
 }
 
-/* ダークモード */
+/* ----------------------------------------------
+ * ダークテーマ
+ * ---------------------------------------------- */
+
 body.tms-al-theme-dark {
 	--tms-al-color-bg: #1e1e1e;
 	--tms-al-color-surface: #2d2d2d;
@@ -51,7 +67,10 @@ body.tms-al-theme-dark {
 	--tms-al-titlebar-inactive-text: #8a8a8a;
 }
 
-/* ライトモード（明示指定時） */
+/* ----------------------------------------------
+ * ライトテーマの明示指定
+ * ---------------------------------------------- */
+
 body.tms-al-theme-light {
 	--tms-al-color-bg: #f5f5f5;
 	--tms-al-color-surface: #ffffff;
@@ -70,7 +89,7 @@ body.tms-al-theme-light {
 	--tms-al-titlebar-inactive-text: #555555;
 }
 
-/* システム追従（OS ダーク時）: JS 適用前の白フラッシュを抑止 */
+/* ----- JS 適用前の白飛びを防ぐ ----- */
 @media (prefers-color-scheme: dark) {
 	body.tms-al-body:not(.tms-al-theme-light) {
 		--tms-al-color-bg: #1e1e1e;
@@ -97,12 +116,17 @@ body.tms-al-theme-light {
 	}
 }
 
+/* ----------------------------------------------
+ * アプリ枠
+ * ---------------------------------------------- */
+
 *,
 *::before,
 *::after {
 	box-sizing: border-box;
 }
 
+/* hidden 属性を、部品側の display 指定より優先する */
 [hidden] {
 	display: none !important;
 }
@@ -142,7 +166,10 @@ body.tms-al-body {
 	background-color: var(--tms-al-titlebar-inactive-bg);
 	border-bottom: 1px solid color-mix(in srgb, var(--tms-al-titlebar-inactive-text) 24%, transparent);
 	box-shadow: var(--tms-al-shadow);
-	transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+	transition:
+		background-color 0.15s,
+		border-color 0.15s,
+		color 0.15s;
 }
 
 :root.tms-al-window-focused .tms-al-header,
@@ -191,6 +218,10 @@ body.tms-al-window-focused .tms-al-header {
 	overflow: hidden;
 }
 
+/* ----------------------------------------------
+ * ツールバーと検索
+ * ---------------------------------------------- */
+
 .tms-al-toolbar {
 	display: flex;
 	align-items: center;
@@ -225,6 +256,7 @@ body.tms-al-window-focused .tms-al-header {
 	outline-offset: 1px;
 }
 
+/* 検索結果をグループ一覧より前に出す */
 .tms-al-search__results {
 	position: absolute;
 	z-index: 20;
@@ -289,7 +321,7 @@ body.tms-al-window-focused .tms-al-header {
 }
 
 .tms-al-search__option:hover,
-.tms-al-search__option[aria-selected="true"] {
+.tms-al-search__option[aria-selected='true'] {
 	background: var(--tms-al-color-preview-bg);
 }
 
@@ -314,6 +346,10 @@ body.tms-al-window-focused .tms-al-header {
 		max-width: none;
 	}
 }
+
+/* ----------------------------------------------
+ * ペイン
+ * ---------------------------------------------- */
 
 .tms-al-group-list {
 	flex: 1;
@@ -352,6 +388,10 @@ body.tms-al-window-focused .tms-al-header {
 	border-top: 1px solid var(--tms-al-color-border);
 }
 
+/* ----------------------------------------------
+ * フッター
+ * ---------------------------------------------- */
+
 .tms-al-footer {
 	display: flex;
 	align-items: center;
@@ -368,6 +408,10 @@ body.tms-al-window-focused .tms-al-header {
 	text-align: center;
 }
 
+/* ----------------------------------------------
+ * ボタン
+ * ---------------------------------------------- */
+
 .tms-al-btn {
 	display: inline-flex;
 	align-items: center;
@@ -381,7 +425,9 @@ body.tms-al-window-focused .tms-al-header {
 	border: 1px solid var(--tms-al-color-border);
 	border-radius: var(--tms-al-radius);
 	cursor: pointer;
-	transition: background-color 0.15s, border-color 0.15s;
+	transition:
+		background-color 0.15s,
+		border-color 0.15s;
 }
 
 .tms-al-btn:hover {

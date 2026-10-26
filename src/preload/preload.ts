@@ -1,3 +1,8 @@
+/**
+ * レンダラーへ launcherApi を公開し、起動前のウィンドウ色とフォーカスを DOM へ当てる
+ * ファイルの読み書きは main へ渡し、このファイルは橋渡しだけを行う
+ * @file
+ */
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 
 declare const document: {
@@ -26,6 +31,7 @@ const CSS_COLOR_HEX_PATTERN = /^#[0-9a-f]{6}$/iu;
  * @returns {string | null} 引数値
  */
 function readAdditionalArgument(prefix: string): string | null {
+	// prefix で始まる argv。無いときは undefined で、戻り値は null
 	const arg = process.argv.find((value) => value.startsWith(prefix));
 
 	return arg ? arg.slice(prefix.length) : null;
@@ -45,20 +51,29 @@ function isValidCssColor(color: unknown): color is string {
  * @returns {Record<string, string> | null} 色定義
  */
 function readInitialWindowChromeColors(): Record<string, string> | null {
+	// URI エンコードされた JSON。argv に無いときは null
 	const encoded = readAdditionalArgument(WINDOW_CHROME_COLORS_ARG_PREFIX);
 
+	// 引数が無い、または空。色は後から IPC で取る
 	if (!encoded) {
 		return null;
 	}
 
 	try {
+		// ----------------------------------------------
+		// デコードしたオブジェクト。キーが欠けていても色は空文字にする
+		// ----------------------------------------------
 		const parsed = JSON.parse(decodeURIComponent(encoded)) as Record<string, unknown>;
 
 		return {
-			activeBackground  : isValidCssColor(parsed.activeBackground) ? parsed.activeBackground : '',
-			activeText        : isValidCssColor(parsed.activeText) ? parsed.activeText : '',
+			// アクティブ背景。#RRGGBB でなければ空文字で未設定
+			activeBackground: isValidCssColor(parsed.activeBackground) ? parsed.activeBackground : '',
+			// アクティブ文字。#RRGGBB でなければ空文字
+			activeText: isValidCssColor(parsed.activeText) ? parsed.activeText : '',
+			// 非アクティブ背景。#RRGGBB でなければ空文字
 			inactiveBackground: isValidCssColor(parsed.inactiveBackground) ? parsed.inactiveBackground : '',
-			inactiveText      : isValidCssColor(parsed.inactiveText) ? parsed.inactiveText : '',
+			// 非アクティブ文字。#RRGGBB でなければ空文字
+			inactiveText: isValidCssColor(parsed.inactiveText) ? parsed.inactiveText : ''
 		};
 	} catch {
 		return null;
@@ -67,29 +82,42 @@ function readInitialWindowChromeColors(): Record<string, string> | null {
 
 /**
  * 初回 paint 前にウィンドウクローム色を CSS 変数へ反映する
- * @returns {void}
  */
 function applyInitialWindowChromeStyles(): void {
+	// ----------------------------------------------
+	// argv の色。無い、または壊れているときは null で何も塗らない
+	// ----------------------------------------------
 	const colors = readInitialWindowChromeColors();
+	// 文書要素。preload 時点で無いときは何もしない
 	const root   = document.documentElement;
 
+	// 色が無いか、文書要素が無いか。どちらかで CSS 変数を置かない。両方あるときだけ書く
 	if (!colors || !root) {
 		return;
 	}
 
+	// ----------------------------------------------
+	// CSS 変数名と色。空文字の色は後段で書かない
+	// ----------------------------------------------
 	const colorMap = {
-		'--tms-al-titlebar-active-bg'     : colors.activeBackground,
-		'--tms-al-titlebar-active-text'   : colors.activeText,
-		'--tms-al-titlebar-inactive-bg'   : colors.inactiveBackground,
-		'--tms-al-titlebar-inactive-text' : colors.inactiveText,
+		// フォーカス中のタイトルバー背景。無効なら空文字
+		'--tms-al-titlebar-active-bg': colors.activeBackground,
+		// フォーカス中のタイトル文字。無効なら空文字
+		'--tms-al-titlebar-active-text': colors.activeText,
+		// 非フォーカスのタイトルバー背景。無効なら空文字
+		'--tms-al-titlebar-inactive-bg': colors.inactiveBackground,
+		// 非フォーカスのタイトル文字。無効なら空文字
+		'--tms-al-titlebar-inactive-text': colors.inactiveText
 	};
 
 	Object.entries(colorMap).forEach(([property, color]) => {
+		// #RRGGBB のときだけ書く。空文字は未設定として飛ばす
 		if (isValidCssColor(color)) {
 			root.style.setProperty(property, color);
 		}
 	});
 
+	// 起動引数が true のときだけフォーカス済みクラスを付ける。false や欠落は付けない
 	if (readAdditionalArgument(WINDOW_FOCUSED_ARG_PREFIX) === 'true') {
 		root.classList.add('tms-al-window-focused');
 	}
@@ -236,10 +264,7 @@ const launcherApi = {
 	 * @param {object} payload 起動パラメータ
 	 * @returns {Promise<import('../main/types').LaunchResult>} 起動結果
 	 */
-	launchApp: (payload: import('../main/types').LaunchAppPayload) => ipcRenderer.invoke(
-		'app:launch',
-		payload,
-	),
+	launchApp: (payload: import('../main/types').LaunchAppPayload) => ipcRenderer.invoke('app:launch', payload),
 
 	/**
 	 * アプリ右クリックメニューを表示する
@@ -258,14 +283,9 @@ const launcherApi = {
 	 * @param {(payload: import('../main/types').RunningAppsPayload) => void} callback コールバック
 	 * @returns {() => void} 購読解除関数
 	 */
-	onRunningAppsChanged: (
-		callback: (payload: import('../main/types').RunningAppsPayload) => void,
-	) => {
+	onRunningAppsChanged: (callback: (payload: import('../main/types').RunningAppsPayload) => void) => {
 		/** 起動中アプリ変更通知リスナー */
-		const listener = (
-			_event: Electron.IpcRendererEvent,
-			payload: import('../main/types').RunningAppsPayload,
-		) => callback(payload);
+		const listener = (_event: Electron.IpcRendererEvent, payload: import('../main/types').RunningAppsPayload) => callback(payload);
 		ipcRenderer.on('running-apps:changed', listener);
 
 		return () => {
@@ -297,14 +317,16 @@ const launcherApi = {
 	 * @param {'ERROR' | 'WARN' | 'INFO' | 'DEBUG'} level ログレベル
 	 * @param {string} message メッセージ
 	 * @param {Record<string, unknown>} [context] コンテキスト
-	 * @returns {void}
 	 */
-	writeLog: (
-		level: 'ERROR' | 'WARN' | 'INFO' | 'DEBUG',
-		message: string,
-		context?: Record<string, unknown>,
-	) => {
-		ipcRenderer.send('log:write', { level, message, context });
+	writeLog: (level: 'ERROR' | 'WARN' | 'INFO' | 'DEBUG', message: string, context?: Record<string, unknown>) => {
+		ipcRenderer.send('log:write', {
+			// レンダラーが指定したレベル。空にはしない
+			level,
+			// 本文。空でも送る
+			message,
+			// 追加情報。未指定のときは undefined のまま
+			context
+		});
 	},
 
 	/**
@@ -350,10 +372,7 @@ const launcherApi = {
 	 */
 	onUpdateStatus: (callback: (payload: import('../main/types').UpdateStatusPayload) => void) => {
 		/** 更新状態通知リスナー */
-		const listener = (
-			_event: Electron.IpcRendererEvent,
-			payload: import('../main/types').UpdateStatusPayload,
-		) => callback(payload);
+		const listener = (_event: Electron.IpcRendererEvent, payload: import('../main/types').UpdateStatusPayload) => callback(payload);
 		ipcRenderer.on('update:status', listener);
 
 		return () => {
@@ -380,11 +399,10 @@ const launcherApi = {
 
 	/**
 	 * 終了前処理完了をメインプロセスへ通知する
-	 * @returns {void}
 	 */
 	notifyCloseReady: () => {
 		ipcRenderer.send('app:close-ready');
-	},
+	}
 };
 
 contextBridge.exposeInMainWorld('launcherApi', launcherApi);

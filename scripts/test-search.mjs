@@ -1,28 +1,31 @@
+/**
+ * 検索の正規化とハイライトを、renderer の search.js を VM で実行して検証する
+ * ファイルは書かない。終了コード 0 は成功、アサーション失敗は 1
+ * @file
+ */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 
+// リポジトリルート。search.js をここから読む
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const source  = fs.readFileSync(
-	path.join(rootDir, 'src', 'renderer', 'main-view', 'search.js'),
-	'utf8',
-);
-const context = { TMS_AL: {} };
+// 検証する search.js のソース。ファイルは書き換えない
+const source  = fs.readFileSync(path.join(rootDir, 'src', 'renderer', 'main-view', 'search.js'), 'utf8');
+// VM に渡すグローバル。Search はソースが TMS_AL へ足す
+const context = {
+	// search.js がメソッドを足す入れ物。初期は空
+	TMS_AL: {}
+};
 
-vm.runInNewContext(source, context, { filename: 'search.js' });
+vm.runInNewContext(source, context, {
+	// スタックに出すファイル名。実パスではなく表示用
+	filename: 'search.js'
+});
 
-const {
-	Normalize,
-	BuildHighlightParts,
-	Contains,
-	ContainsApp,
-	GetPathFileName,
-	Matches,
-	MatchesApp,
-	MergeSearchGroups,
-} = context.TMS_AL.Search;
+// VM 上の検索関数。プレーンな値へ戻してから比較する
+const { Normalize, BuildHighlightParts, Contains, ContainsApp, GetPathFileName, Matches, MatchesApp, MergeSearchGroups } = context.TMS_AL.Search;
 
 /**
  * VMコンテキスト由来の値を通常のプレーン値へ変換する
@@ -54,23 +57,21 @@ assert.equal(Contains('anything', '   '), false);
 
 assert.deepEqual(toPlain(BuildHighlightParts('LaunchFDE.bat', 'launch')), [
 	{ text: 'Launch', highlight: true, kind: 'partial' },
-	{ text: 'FDE.bat', highlight: false },
+	{ text: 'FDE.bat', highlight: false }
 ]);
 assert.deepEqual(toPlain(BuildHighlightParts('Code code', 'code')), [
 	{ text: 'Code', highlight: true, kind: 'partial' },
 	{ text: ' ', highlight: false },
-	{ text: 'code', highlight: true, kind: 'partial' },
+	{ text: 'code', highlight: true, kind: 'partial' }
 ]);
-assert.deepEqual(toPlain(BuildHighlightParts('Ｔｅａｍｓ', 'teams')), [
-	{ text: 'Ｔｅａｍｓ', highlight: true, kind: 'partial' },
-]);
+assert.deepEqual(toPlain(BuildHighlightParts('Ｔｅａｍｓ', 'teams')), [{ text: 'Ｔｅａｍｓ', highlight: true, kind: 'partial' }]);
 assert.deepEqual(toPlain(BuildHighlightParts('Visual Studio Code', 'v c s')), [
 	{ text: 'V', highlight: true, kind: 'character' },
 	{ text: 'i', highlight: false },
 	{ text: 's', highlight: true, kind: 'character' },
 	{ text: 'ual Studio ', highlight: false },
 	{ text: 'C', highlight: true, kind: 'character' },
-	{ text: 'ode', highlight: false },
+	{ text: 'ode', highlight: false }
 ]);
 assert.deepEqual(toPlain(BuildHighlightParts('TAME Sort Utility', 'teams')), [
 	{ text: 'T', highlight: true, kind: 'character' },
@@ -79,11 +80,9 @@ assert.deepEqual(toPlain(BuildHighlightParts('TAME Sort Utility', 'teams')), [
 	{ text: 'E', highlight: true, kind: 'character' },
 	{ text: ' ', highlight: false },
 	{ text: 'S', highlight: true, kind: 'character' },
-	{ text: 'ort Utility', highlight: false },
+	{ text: 'ort Utility', highlight: false }
 ]);
-assert.deepEqual(toPlain(BuildHighlightParts('Other.exe', 'teams')), [
-	{ text: 'Other.exe', highlight: false },
-]);
+assert.deepEqual(toPlain(BuildHighlightParts('Other.exe', 'teams')), [{ text: 'Other.exe', highlight: false }]);
 
 assert.equal(GetPathFileName('C:\\Program Files\\Microsoft VS Code\\Code.exe'), 'Code.exe');
 assert.equal(GetPathFileName('C:/Tools/ms-teams.exe'), 'ms-teams.exe');
@@ -98,13 +97,47 @@ assert.equal(ContainsApp('Launch Helper', 'C:\\Program Files\\Microsoft VS Code\
 assert.equal(ContainsApp('Launch Helper', 'C:\\Tools\\ms-teams.exe', 'teams'), true);
 assert.equal(ContainsApp('Launch Helper', 'C:\\Tools\\TAME Sort Utility.exe', 'teams'), false);
 
-const partialA = [{ appId: 'a-teams', groupId: 'g1', label: 'MS365：Microsoft Teams' }];
-const partialB = [{ appId: 'a-short', groupId: 'g1', label: 'MS365：ms-teams' }];
-const otherA   = [{ appId: 'a-edge', groupId: 'g2', label: 'Web：Microsoft Edge TMS' }];
+// 部分一致側の 1 件。仕切りより前に残る
+const partialA = [
+	{
+		// 部分一致したアプリ ID
+		appId: 'a-teams',
+		// 所属グループ ID。仕切り判定には使わない
+		groupId: 'g1',
+		// 表示ラベル。グループ名とアプリ名
+		label: 'MS365：Microsoft Teams'
+	}
+];
+// もう 1 件の部分一致。複数件でも仕切りは 1 本
+const partialB = [
+	{
+		// 短い名前の部分一致
+		appId: 'a-short',
+		// partialA と同じグループ
+		groupId: 'g1',
+		// ファイル名に近い表示ラベル
+		label: 'MS365：ms-teams'
+	}
+];
+// 文字の出現だけで一致した件。部分一致の後ろに置く
+const otherA   = [
+	{
+		// 部分一致ではないアプリ ID
+		appId: 'a-edge',
+		// 別グループ
+		groupId: 'g2',
+		// 連続文字列 teams は含まないラベル
+		label: 'Web：Microsoft Edge TMS'
+	}
+];
 
+// 部分一致だけ。仕切りは入らない
 const mergedPartialOnly = MergeSearchGroups(partialA, []);
+// 文字一致だけ。仕切りは入らない
 const mergedOtherOnly   = MergeSearchGroups([], otherA);
+// 両方あるとき仕切りが 1 本入る
 const mergedBoth        = MergeSearchGroups(partialA, otherA);
+// 部分一致が複数でも仕切りは 1 本
 const mergedMulti       = MergeSearchGroups([...partialA, ...partialB], otherA);
 
 assert.equal(mergedPartialOnly.length, 1);

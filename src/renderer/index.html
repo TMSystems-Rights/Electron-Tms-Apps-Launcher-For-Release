@@ -1,7 +1,18 @@
 <!doctype html>
+<!-- ============================================== -->
+<!-- ランチャー画面の骨格を定義する -->
+<!-- ============================================== -->
+
+<!--
+  表示の更新と操作の接続は renderer の JavaScript が行う
+  このファイルには画面の領域とモーダルの骨格だけを置く
+-->
 <html lang="ja">
 	<head>
 		<meta charset="UTF-8" />
+		<!-- ---------------------------------------------- -->
+		<!-- 初期スタイルとタイトル -->
+		<!-- ---------------------------------------------- -->
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:;" />
 		<title>TMS-AppsLauncher</title>
@@ -11,6 +22,9 @@
 		<link rel="stylesheet" href="styles/modal.css" />
 	</head>
 	<body class="tms-al-body tms-al-window-focused">
+		<!-- ---------------------------------------------- -->
+		<!-- アプリ枠 -->
+		<!-- ---------------------------------------------- -->
 		<div id="tmsAlApp" class="tms-al-app">
 			<header id="tmsAlHeader" class="tms-al-header">
 				<div class="tms-al-header__drag">
@@ -20,6 +34,9 @@
 			</header>
 
 			<main id="tmsAlMain" class="tms-al-main">
+				<!-- ---------------------------------------------- -->
+				<!-- ツールバーと検索 -->
+				<!-- ---------------------------------------------- -->
 				<div id="tmsAlToolbar" class="tms-al-toolbar">
 					<button id="tmsAlBtnAddGroup" class="tms-al-btn tms-al-btn--secondary tms-al-toolbar__add-group" type="button">＋ グループ</button>
 					<div class="tms-al-search">
@@ -30,25 +47,39 @@
 					<button id="tmsAlBtnExpandAll" class="tms-al-btn tms-al-btn--secondary" type="button">すべて展開</button>
 				</div>
 
+				<!-- ---------------------------------------------- -->
+				<!-- グループ一覧 -->
+				<!-- ---------------------------------------------- -->
 				<div id="tmsAlPaneContainer" class="tms-al-pane-container">
 					<div id="tmsAlGroupListLeft" class="tms-al-group-list tms-al-pane" data-pane="left" role="list"></div>
+					<!-- 3 ペインのときだけ出す -->
 					<div id="tmsAlGroupListCenter" class="tms-al-group-list tms-al-pane" data-pane="center" role="list" hidden></div>
+					<!-- 2 ペイン以上のときだけ出す -->
 					<div id="tmsAlGroupListRight" class="tms-al-group-list tms-al-pane" data-pane="right" role="list" hidden></div>
 				</div>
+				<!-- 登録が 0 件のときだけ出す -->
 				<p id="tmsAlEmptyMessage" class="tms-al-empty-message" hidden>アプリが登録されていません。「＋ 追加」から登録してください。</p>
 
+				<!-- ---------------------------------------------- -->
+				<!-- 一覧への追加 -->
+				<!-- ---------------------------------------------- -->
 				<div id="tmsAlAddRow" class="tms-al-add-row">
 					<button id="tmsAlBtnAdd" class="tms-al-btn tms-al-btn--primary" type="button">＋ 追加</button>
 				</div>
 			</main>
 
+			<!-- ---------------------------------------------- -->
+			<!-- フッター -->
+			<!-- ---------------------------------------------- -->
 			<footer id="tmsAlFooter" class="tms-al-footer">
 				<span id="tmsAlCopyright" class="tms-al-footer__copyright">© 2026 TMSystems. All rights reserved.</span>
 				<span id="tmsAlVersion" class="tms-al-footer__version">v1.0.0</span>
 			</footer>
 		</div>
 
-		<!-- 登録・編集モーダル -->
+		<!-- ---------------------------------------------- -->
+		<!-- アプリの登録と編集 -->
+		<!-- ---------------------------------------------- -->
 		<div id="tmsAlModalEdit" class="tms-al-modal" hidden>
 			<div id="tmsAlModalEditBackdrop" class="tms-al-modal__backdrop"></div>
 			<div class="tms-al-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="tmsAlModalEditTitle">
@@ -94,7 +125,9 @@
 			</div>
 		</div>
 
-		<!-- 設定モーダル -->
+		<!-- ---------------------------------------------- -->
+		<!-- 表示と保存先の設定 -->
+		<!-- ---------------------------------------------- -->
 		<div id="tmsAlModalSettings" class="tms-al-modal" hidden>
 			<div id="tmsAlModalSettingsBackdrop" class="tms-al-modal__backdrop"></div>
 			<div class="tms-al-modal__dialog tms-al-modal__dialog--settings" role="dialog" aria-modal="true" aria-labelledby="tmsAlModalSettingsTitle">
@@ -112,11 +145,13 @@
 					</div>
 				</div>
 
+				<!-- ペイン数が 2 以上のときだけ出す -->
 				<div id="tmsAlSettingsUncategorizedPaneSection" class="tms-al-form-row" hidden>
 					<label class="tms-al-form-row__label" for="tmsAlSettingsUncategorizedPane">未分類グループの表示位置</label>
 					<div class="tms-al-form-row__control-row">
 						<select id="tmsAlSettingsUncategorizedPane" class="tms-al-form-row__select">
 							<option value="left">左ペイン</option>
+							<!-- 3 ペインのときだけ選ばせる -->
 							<option value="center" data-pane-option="center" hidden>中央ペイン</option>
 							<option value="right">右ペイン</option>
 						</select>
@@ -145,6 +180,7 @@
 					</div>
 				</div>
 
+				<!-- 次回起動で現在サイズを使わないときだけ出す -->
 				<div id="tmsAlSettingsWindowSizeSection" class="tms-al-form-row" hidden>
 					<span class="tms-al-form-row__label">ウィンドウサイズ</span>
 					<div class="tms-al-settings__window-block">
@@ -208,9 +244,15 @@
 			</div>
 		</div>
 
+		<!-- ---------------------------------------------- -->
+		<!-- 短い通知 -->
+		<!-- ---------------------------------------------- -->
 		<div id="tmsAlToastContainer" class="tms-al-toast-container" aria-live="polite"></div>
 
-		<!-- テキスト入力プロンプト（Electron では window.prompt 非対応のため自前実装） -->
+		<!-- ---------------------------------------------- -->
+		<!-- 文字入力 -->
+		<!-- ---------------------------------------------- -->
+		<!-- Electron には window.prompt が無い -->
 		<div id="tmsAlPromptModal" class="tms-al-modal" hidden>
 			<div id="tmsAlPromptBackdrop" class="tms-al-modal__backdrop"></div>
 			<div class="tms-al-modal__dialog tms-al-modal__dialog--prompt" role="dialog" aria-modal="true" aria-labelledby="tmsAlPromptMessage">
@@ -223,6 +265,9 @@
 			</div>
 		</div>
 
+		<!-- ---------------------------------------------- -->
+		<!-- 画面スクリプトの起動 -->
+		<!-- ---------------------------------------------- -->
 		<script src="common/tms_common.js"></script>
 		<script src="modal-edit/edit.js"></script>
 		<script src="modal-settings/settings.js"></script>

@@ -1,3 +1,8 @@
+/**
+ * ウィンドウサイズの下限とタイトルバー色を決める
+ * BrowserWindow の生成は main.ts が行い、このファイルは数値と色だけを返す
+ * @file
+ */
 import { execFileSync } from 'node:child_process';
 import type { BrowserWindow, TitleBarOverlay } from 'electron';
 import { nativeTheme, screen, systemPreferences } from 'electron';
@@ -28,11 +33,15 @@ export const DEFAULT_WINDOW_WIDTH = 480;
 /** ウィンドウ既定高さ */
 export const DEFAULT_WINDOW_HEIGHT = 720;
 
-/** ウィンドウサイズ制限 */
+/** ペイン数から決めるウィンドウサイズの下限と上限。単位は px */
 export interface WindowSizeLimitValues {
+	/** これより狭くしない幅 */
 	minWidth: number;
+	/** これより低くしない高さ */
 	minHeight: number;
+	/** 作業領域に収まる最大幅 */
 	maxWidth: number;
+	/** 作業領域に収まる最大高さ */
 	maxHeight: number;
 }
 
@@ -42,11 +51,15 @@ export const TITLE_BAR_OVERLAY_HEIGHT = 48;
 /** Windows DWM レジストリキー */
 const DWM_REGISTRY_KEY = 'HKCU\\Software\\Microsoft\\Windows\\DWM';
 
-/** ウィンドウクローム色 */
+/** タイトルバーのアクティブ時と非アクティブ時の色。#RRGGBB */
 export interface WindowChromeColors {
+	/** フォーカスがあるときのタイトルバー背景 */
 	activeBackground: string;
+	/** フォーカスがあるときのタイトル文字 */
 	activeText: string;
+	/** フォーカスが無いときのタイトルバー背景 */
 	inactiveBackground: string;
+	/** フォーカスが無いときのタイトル文字 */
 	inactiveText: string;
 }
 
@@ -56,8 +69,14 @@ export interface WindowChromeColors {
  * @returns {string | null} 正規化した色
  */
 function normalizeRgbColor(color: string | undefined): string | null {
+	// ----------------------------------------------
+	// # 任意の 6 桁。後ろの 2 桁アルファは捨てる。undefined や空は null
+	// ----------------------------------------------
 	const match = color?.trim().match(/^#?([0-9a-fA-F]{6})(?:[0-9a-fA-F]{2})?$/u);
 
+	// ----------------------------------------------
+	// 6 桁の 16 進が無い。短い色や名前色は使わない
+	// ----------------------------------------------
 	if (!match) {
 		return null;
 	}
@@ -71,15 +90,15 @@ function normalizeRgbColor(color: string | undefined): string | null {
  * @returns {number} 相対輝度
  */
 function getRelativeLuminance(color: string): number {
+	// sRGB を相対輝度用に直した配列。順は R, G, B。解析できない桁は NaN になり得る
 	const rgb = [1, 3, 5].map((index) => {
+		// 2 桁 hex を 0 から 1。解析できないときは NaN
 		const channel = parseInt(color.slice(index, index + 2), 16) / 255;
 
-		return channel <= 0.03928
-			? channel / 12.92
-			: ((channel + 0.055) / 1.055) ** 2.4;
+		return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
 	});
 
-	return (0.2126 * (rgb[0] ?? 0)) + (0.7152 * (rgb[1] ?? 0)) + (0.0722 * (rgb[2] ?? 0));
+	return 0.2126 * (rgb[0] ?? 0) + 0.7152 * (rgb[1] ?? 0) + 0.0722 * (rgb[2] ?? 0);
 }
 
 /**
@@ -96,22 +115,29 @@ function resolveReadableTextColor(background: string): string {
  * @returns {boolean | null} 有効なら true、取得できない場合は null
  */
 function readWindowsTitleBarAccentEnabled(): boolean | null {
+	// ----------------------------------------------
+	// Windows 以外にこの設定は無い。無効として false。不明の null ではない
+	// ----------------------------------------------
 	if (process.platform !== 'win32') {
 		return false;
 	}
 
 	try {
-		const output = execFileSync(
-			'reg.exe',
-			['query', DWM_REGISTRY_KEY, '/v', 'ColorPrevalence'],
-			{
-				encoding   : 'utf8',
-				timeout    : 1000,
-				windowsHide: true,
-			},
-		);
+		// ----------------------------------------------
+		// reg query の標準出力。失敗は catch で null。空だと値行に一致しない
+		// ----------------------------------------------
+		const output = execFileSync('reg.exe', ['query', DWM_REGISTRY_KEY, '/v', 'ColorPrevalence'], {
+			// レジストリ出力の文字コード
+			encoding: 'utf8',
+			// 応答待ちの上限。単位は ms。超過は catch で null
+			timeout: 1000,
+			// コンソールを出さない
+			windowsHide: true
+		});
+		// ColorPrevalence の 16 進。行の形が違うときは null で設定不明
 		const match  = output.match(/ColorPrevalence\s+REG_DWORD\s+0x([0-9a-f]+)/iu);
 
+		// 値の行が無い。有効か無効か決めない
 		if (!match) {
 			return null;
 		}
@@ -127,26 +153,37 @@ function readWindowsTitleBarAccentEnabled(): boolean | null {
  * @param {'system' | 'dark' | 'light'} appearance 外観設定
  * @returns {WindowChromeColors} クローム色
  */
-function resolveFallbackWindowChromeColors(
-	appearance: 'system' | 'dark' | 'light',
-): WindowChromeColors {
-	const isDark = appearance === 'dark'
-		|| (appearance === 'system' && nativeTheme.shouldUseDarkColors);
+function resolveFallbackWindowChromeColors(appearance: 'system' | 'dark' | 'light'): WindowChromeColors {
+	// ----------------------------------------------
+	// dark 指定か、system かつ OS がダーク。system のときは OS がダークであることも必要
+	// ----------------------------------------------
+	const isDark = appearance === 'dark' || (appearance === 'system' && nativeTheme.shouldUseDarkColors);
 
+	// ----------------------------------------------
+	// ダークパレット。単位は #RRGGBB。light 指定はこの分岐に入らない
+	// ----------------------------------------------
 	if (isDark) {
 		return {
-			activeBackground  : '#2d2d2d',
-			activeText        : '#f0f0f0',
+			// フォーカス中のタイトルバー背景
+			activeBackground: '#2d2d2d',
+			// フォーカス中のタイトル文字
+			activeText: '#f0f0f0',
+			// 非フォーカスのタイトルバー背景
 			inactiveBackground: '#1f1f1f',
-			inactiveText      : '#8a8a8a',
+			// 非フォーカスのタイトル文字
+			inactiveText: '#8a8a8a'
 		};
 	}
 
 	return {
-		activeBackground  : '#ffffff',
-		activeText        : '#1a1a1a',
+		// フォーカス中のタイトルバー背景
+		activeBackground: '#ffffff',
+		// フォーカス中のタイトル文字
+		activeText: '#1a1a1a',
+		// 非フォーカスのタイトルバー背景。ライトではアクティブと同じ
 		inactiveBackground: '#ffffff',
-		inactiveText      : '#555555',
+		// 非フォーカスのタイトル文字。背景より薄い
+		inactiveText: '#555555'
 	};
 }
 
@@ -155,33 +192,39 @@ function resolveFallbackWindowChromeColors(
  * @param {'system' | 'dark' | 'light'} [appearance='system'] 外観設定
  * @returns {WindowChromeColors} クローム色
  */
-export function resolveWindowChromeColors(
-	appearance: 'system' | 'dark' | 'light' = 'system',
-): WindowChromeColors {
+export function resolveWindowChromeColors(appearance: 'system' | 'dark' | 'light' = 'system'): WindowChromeColors {
+	// アクセントが取れないときの色。ダークとライトで中身が違う
 	const fallback = resolveFallbackWindowChromeColors(appearance);
 
+	// Windows 以外はアクセントを読まない
 	if (process.platform !== 'win32') {
 		return fallback;
 	}
 
 	try {
+		// ----------------------------------------------
+		// システムアクセント。#RRGGBB にできないときは null
+		// ----------------------------------------------
 		const accentColor      = normalizeRgbColor(systemPreferences.getAccentColor());
+		// 1 なら true、0 なら false、読めないときは null。null は無効確定ではない
 		const accentEnabled    = readWindowsTitleBarAccentEnabled();
-		const activeBackground = accentColor && accentEnabled !== false
-			? accentColor
-			: fallback.activeBackground;
+		// 色があり、かつ無効と分かっていない。両方が必要。どちらか欠けるとフォールバック
+		const activeBackground = accentColor && accentEnabled !== false ? accentColor : fallback.activeBackground;
 
 		return {
+			// タイトルバー背景。単位は #RRGGBB
 			activeBackground,
-			activeText: activeBackground === fallback.activeBackground
-				? fallback.activeText
-				: resolveReadableTextColor(activeBackground),
+			// 背景がフォールバックのままならその文字色。アクセントに変えたときだけ輝度から決める
+			activeText: activeBackground === fallback.activeBackground ? fallback.activeText : resolveReadableTextColor(activeBackground),
+			// 非フォーカス背景は OS アクセントを使わない
 			inactiveBackground: fallback.inactiveBackground,
-			inactiveText      : fallback.inactiveText,
+			// 非フォーカス文字もフォールバックのまま
+			inactiveText: fallback.inactiveText
 		};
 	} catch (error) {
 		logger.warn('Failed to resolve window chrome colors', {
-			error: error instanceof Error ? error.message : String(error),
+			// Error でなければ文字列化。メッセージが空のときもある
+			error: error instanceof Error ? error.message : String(error)
 		});
 		return fallback;
 	}
@@ -193,6 +236,7 @@ export function resolveWindowChromeColors(
  * @returns {number} 最小幅
  */
 export function getMinWindowWidthForPaneCount(paneCount: number): number {
+	// 1 から 3 へ収めたペイン数。小数は四捨五入。0 以下や未指定は 1。単位は個
 	const count = Math.max(1, Math.min(3, Math.round(paneCount)));
 
 	return MIN_PANE_WIDTH * count;
@@ -204,20 +248,17 @@ export function getMinWindowWidthForPaneCount(paneCount: number): number {
  * @param {boolean} [focused=true] フォーカス中なら true
  * @returns {TitleBarOverlay} オーバーレイ設定
  */
-export function resolveTitleBarOverlay(
-	appearance: 'system' | 'dark' | 'light' = 'system',
-	focused = true,
-): TitleBarOverlay {
+export function resolveTitleBarOverlay(appearance: 'system' | 'dark' | 'light' = 'system', focused = true): TitleBarOverlay {
+	// 外観から決めた #RRGGBB。取得失敗時はフォールバック色
 	const colors = resolveWindowChromeColors(appearance);
 
 	return {
-		color: focused
-			? colors.activeBackground
-			: colors.inactiveBackground,
-		symbolColor: focused
-			? colors.activeText
-			: colors.inactiveText,
-		height     : TITLE_BAR_OVERLAY_HEIGHT,
+		// フォーカス中はアクティブ背景、外れているときは非アクティブ。単位は #RRGGBB
+		color: focused ? colors.activeBackground : colors.inactiveBackground,
+		// 同じ条件の文字色。背景と対になる
+		symbolColor: focused ? colors.activeText : colors.inactiveText,
+		// タイトルバー高さ。単位は px。フォーカスでは変えない
+		height: TITLE_BAR_OVERLAY_HEIGHT
 	};
 }
 
@@ -226,24 +267,27 @@ export function resolveTitleBarOverlay(
  * @param {BrowserWindow} win ウィンドウ
  * @param {'system' | 'dark' | 'light'} [appearance='system'] 外観設定
  * @param {boolean} [focused] フォーカス中なら true
- * @returns {void}
  */
-export function applyTitleBarOverlay(
-	win: BrowserWindow,
-	appearance: 'system' | 'dark' | 'light' = 'system',
-	focused = win.isFocused(),
-): void {
+export function applyTitleBarOverlay(win: BrowserWindow, appearance: 'system' | 'dark' | 'light' = 'system', focused = win.isFocused()): void {
+	// ----------------------------------------------
+	// フォーカスに合わせた色。非フォーカスは inactive 側
+	// ----------------------------------------------
 	const overlay = resolveTitleBarOverlay(appearance, focused);
+	// color が未設定のときの背景。単位は #RRGGBB。通常は overlay.color が入る
 	const bgColor = overlay.color ?? '#ffffff';
 
 	try {
 		win.setBackgroundColor(bgColor);
 	} catch (error) {
 		logger.warn('Failed to apply window background color', {
-			error: error instanceof Error ? error.message : String(error),
+			// Error でなければ文字列化。メッセージが空のときもある
+			error: error instanceof Error ? error.message : String(error)
 		});
 	}
 
+	// ----------------------------------------------
+	// 非 Windows はオーバーレイ API が無い。背景色は反映済み
+	// ----------------------------------------------
 	if (process.platform !== 'win32') {
 		return;
 	}
@@ -252,7 +296,8 @@ export function applyTitleBarOverlay(
 		win.setTitleBarOverlay(overlay);
 	} catch (error) {
 		logger.warn('Failed to apply title bar overlay', {
-			error: error instanceof Error ? error.message : String(error),
+			// Error でなければ文字列化。メッセージが空のときもある
+			error: error instanceof Error ? error.message : String(error)
 		});
 	}
 }
@@ -263,21 +308,23 @@ export function applyTitleBarOverlay(
  * @param {PaneCount | number} [paneCount=1] ペイン数
  * @returns {WindowSizeLimitValues} 制限値
  */
-export function getWindowSizeLimits(
-	win?: BrowserWindow | null,
-	paneCount: PaneCount | number = 1,
-): WindowSizeLimitValues {
-	const display           = win
-		? screen.getDisplayMatching(win.getBounds())
-		: screen.getPrimaryDisplay();
+export function getWindowSizeLimits(win?: BrowserWindow | null, paneCount: PaneCount | number = 1): WindowSizeLimitValues {
+	// ウィンドウが無いときはプライマリ。あるときはその表示面の作業領域
+	const display           = win ? screen.getDisplayMatching(win.getBounds()) : screen.getPrimaryDisplay();
+	// 作業領域の幅と高さ。単位は px。タスクバーは含まない
 	const { width, height } = display.workAreaSize;
+	// ペイン数から決めた最小幅。単位は px。範囲外のペイン数は 1 から 3 へ丸まる
 	const minWidth          = getMinWindowWidthForPaneCount(paneCount);
 
 	return {
+		// これより狭くしない幅。単位は px
 		minWidth,
+		// これより低くしない高さ。単位は px。固定 480
 		minHeight: MIN_WINDOW_HEIGHT,
-		maxWidth : width,
-		maxHeight: height,
+		// 作業領域の幅が上限。単位は px。0 にはならない
+		maxWidth: width,
+		// 作業領域の高さが上限。単位は px
+		maxHeight: height
 	};
 }
 
@@ -288,13 +335,11 @@ export function getWindowSizeLimits(
  * @param {WindowSizeLimitValues} [limits] 制限値
  * @returns {{ width: number; height: number }} 丸め後サイズ
  */
-export function clampWindowSize(
-	width: number,
-	height: number,
-	limits: WindowSizeLimitValues = getWindowSizeLimits(),
-): { width: number; height: number } {
+export function clampWindowSize(width: number, height: number, limits: WindowSizeLimitValues = getWindowSizeLimits()): { width: number; height: number } {
 	return {
-		width : Math.min(limits.maxWidth, Math.max(limits.minWidth, Math.round(width))),
-		height: Math.min(limits.maxHeight, Math.max(limits.minHeight, Math.round(height))),
+		// 最小以上、最大以下へ丸めた幅。単位は px。NaN は丸めの結果が NaN のまま
+		width: Math.min(limits.maxWidth, Math.max(limits.minWidth, Math.round(width))),
+		// 同じ範囲へ丸めた高さ。単位は px
+		height: Math.min(limits.maxHeight, Math.max(limits.minHeight, Math.round(height)))
 	};
 }

@@ -1,0 +1,56 @@
+---
+description: フロントエンドの文字コード、命名、名前空間、検証
+globs: "**/*.{html,css,js,mjs,ts}"
+alwaysApply: false
+---
+
+# コーディング規約（このリポジトリ）
+
+コメントの書き方は言語別のコメント規約に従う。触ったファイルの新規・変更箇所を規約に合わせる。無関係なファイルの一括改修はしない。
+
+## 文字コード
+
+- UTF-8、BOM なし。UTF-8 以外は使わない。
+- HTML は `head` の先頭を `<meta charset="UTF-8">` にする。
+- ファイルとして置く `.css` の先頭バイトは `@charset "utf-8";`。その前にコメント、空行、BOM を置かない。`<style>` 内と文字列注入の CSS には付けない。
+
+## 命名（アプリ略称 Al / al / AL）
+
+このアプリの略称は AppsLauncher → `Al`。既存画面と揃える。
+
+- HTML の id はキャメルケース。接頭辞 `tmsAl`。例: `tmsAlBtnSettings`
+- CSS クラスは小文字とハイフン。接頭辞 `tms-al-`。例: `tms-al-btn`。カスタムプロパティは `--tms-al-`
+- renderer の素の JavaScript のグローバル名前空間は `TMS_` + `AL`。既存は `TMS_AL` と `TMS_AL_COMMON`
+
+## renderer の JavaScript
+
+グローバル汚染を避けるため、オブジェクトの名前空間にまとめる。main / preload の TypeScript は ES modules のままにし、既存ファイルの camelCase に合わせる。関数のアッパーキャメルは renderer の素の JavaScript に適用する。
+
+- 定数はスネークケース。関数と名前空間はアッパーキャメル（`Const`、`Funcs`、`IsEmpty`）
+- 複数画面で使うロジックは `src/renderer/common/tms_common.js` の `TMS_AL_COMMON` に置く
+- 共通オブジェクトは `DeepFreeze` と `Object.freeze` で凍結し、利用側も凍結を使う
+- その場限りの無名コールバックを除き、名前を付けた関数には JSDoc を付ける
+
+```javascript
+const TMS_AL = {
+	Const: {
+		/** ログ接頭辞。実行中は変えない */
+		LOG_PREFIX: '[TmsAppLauncher]',
+	},
+	Funcs: {
+		/**
+		 * 値が空かどうかを判定する
+		 * @param {*} value 判定対象。undefined、null、空白のみを空とする
+		 * @returns {boolean} 空なら true
+		 */
+		IsEmpty: function (value) {
+			return value == null || (typeof value === 'string' && value.trim() === '');
+		},
+	},
+};
+```
+
+## 検証
+
+- JavaScript / TypeScript / `.mjs` は `eslint.config.mjs` に従い、変更後は lint エラーが残らないことを確認する。
+- HTML / CSS を編集したら `npm run format:renderer` を実行する。まとめて直すときは `npm run lint:fix`。
