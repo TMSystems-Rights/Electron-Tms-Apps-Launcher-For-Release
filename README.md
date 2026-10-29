@@ -4,6 +4,10 @@
 
 公開配布リポジトリ: [TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release](https://github.com/TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release)
 
+## v1.9.2 の主な変更
+
+- Electron を 45.1.0 に更新し、同梱 Node.js を 24.22.1 にしました。
+
 ## v1.9.1 の主な変更
 
 - 開発ポータル URL を環境変数 `TMS_PORTAL_DEVELOPMENT_URL` へ移し、ソースから開発用ホスト名を外す

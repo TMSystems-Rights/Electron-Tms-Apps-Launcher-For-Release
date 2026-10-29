@@ -1,6 +1,6 @@
 {
 	"name": "tms-app-launcher",
-	"version": "1.9.1",
+	"version": "1.9.2",
 	"description": "起動アプリをグループ分け整理し表示するアプリ起動ランチャー",
 	"main": "dist/main/main.js",
 	"scripts": {
@@ -50,7 +50,7 @@
 		"@tms/eslint-plugin-align-assignments": "https://github.com/TMSystems-Rights/tms-eslint-plugin-align-assignments/releases/download/v1.0.3/tms-eslint-plugin-align-assignments-1.0.3.tgz",
 		"@types/node": "^22.15.30",
 		"copyfiles": "^2.4.1",
-		"electron": "^41.2.1",
+		"electron": "^45.1.0",
 		"electron-builder": "^26.8.1",
 		"electron-reloader": "^1.2.3",
 		"eslint": "^9.39.4",
