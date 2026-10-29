@@ -196,13 +196,13 @@ Get-CimInstance Win32_Process |
 
 `npm run dist` のあと `npm run package:portable` を実行し、`release/<version>/` に次の 5 点があることを確認します。
 
-| ファイル                                         | 用途                                          |
-| ------------------------------------------------ | --------------------------------------------- |
-| `TmsAppLauncher-<version>-setup.exe`             | NSIS インストーラ                             |
-| `TmsAppLauncher-<version>-setup.exe.blockmap`    | 差分更新用                                    |
-| `latest.yml`                                     | electron-updater が参照する最新バージョン情報 |
-| `TmsAppLauncher-<version>-portable-x64.zip`      | ポータブル ZIP                                |
-| `TmsAppLauncher-<version>-portable-x64.zip.sha256` | ZIP の SHA-256（sha256sum 形式）            |
+| ファイル                                           | 用途                                          |
+| -------------------------------------------------- | --------------------------------------------- |
+| `TmsAppLauncher-<version>-setup.exe`               | NSIS インストーラ                             |
+| `TmsAppLauncher-<version>-setup.exe.blockmap`      | 差分更新用                                    |
+| `latest.yml`                                       | electron-updater が参照する最新バージョン情報 |
+| `TmsAppLauncher-<version>-portable-x64.zip`        | ポータブル ZIP                                |
+| `TmsAppLauncher-<version>-portable-x64.zip.sha256` | ZIP の SHA-256（sha256sum 形式）              |
 
 `latest.yml` は同じ `npm run dist` で生成された `setup.exe` の `sha512` と `size` を持ちます。ポータブル ZIP は `latest.yml` に載せません。`npm run dist` を再実行した場合は、必ず setup.exe / blockmap / latest.yml を同じ実行結果でまとめ、その `win-unpacked` から ZIP も作り直して公開し直してください。
 
@@ -322,14 +322,14 @@ Release 公開には OS 環境変数 `GITHUB_RELEASE_TOKEN` の読み書きト�
 
 ### ポータブル ZIP の仕様
 
-| 項目     | 内容                                                                 |
-| -------- | -------------------------------------------------------------------- |
-| 形式     | `TMS-AppsLauncher` フォルダを含む ZIP                                |
-| 起動     | 展開後に `TmsAppLauncher.exe` を直接実行                             |
-| 判定     | exe と同じフォルダの `portable-mode.json`（削除禁止）                |
-| データ   | exe と同じ階層の `data\`（`data\data\` にはしない）                  |
-| 更新     | 公式ページへ誘導。自動ダウンロードしない                             |
-| 保存先UI | 非表示。展開先外へは変更できない                                     |
+| 項目     | 内容                                                  |
+| -------- | ----------------------------------------------------- |
+| 形式     | `TMS-AppsLauncher` フォルダを含む ZIP                 |
+| 起動     | 展開後に `TmsAppLauncher.exe` を直接実行              |
+| 判定     | exe と同じフォルダの `portable-mode.json`（削除禁止） |
+| データ   | exe と同じ階層の `data\`（`data\data\` にはしない）   |
+| 更新     | 公式ページへ誘導。自動ダウンロードしない              |
+| 保存先UI | 非表示。展開先外へは変更できない                      |
 
 ## Lint
 
@@ -385,12 +385,12 @@ src/
 
 ポータブル ZIP 版:
 
-| 種別                 | パス                                      |
-| -------------------- | ----------------------------------------- |
-| 判定ファイル         | `<exeDir>\portable-mode.json`             |
-| ブートストラップ設定 | `<exeDir>\data\app-config.json`           |
-| 実データ             | `<exeDir>\data\launcher-data.json`        |
-| ログ                 | `<exeDir>\data\logs\`                     |
+| 種別                 | パス                               |
+| -------------------- | ---------------------------------- |
+| 判定ファイル         | `<exeDir>\portable-mode.json`      |
+| ブートストラップ設定 | `<exeDir>\data\app-config.json`    |
+| 実データ             | `<exeDir>\data\launcher-data.json` |
+| ログ                 | `<exeDir>\data\logs\`              |
 
 ポータブル版の `dataDir` は `userData`（`<exeDir>\data`）と同じです。書き込みできない場合は `%APPDATA%` へ逃がさず終了します。
 
