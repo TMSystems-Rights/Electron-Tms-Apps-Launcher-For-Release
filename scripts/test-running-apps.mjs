@@ -4,6 +4,7 @@
  * @file
  */
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -137,6 +138,66 @@ assert.deepEqual(
 	]),
 	['teams-alias', 'teams-link']
 );
+
+// Chrome のプロファイル別の登録。Chrome はタイトルにプロファイル名を出さないため、ウィンドウの AppUserModelID だけで判定できる
+const chromeProfileApps    = [
+	{
+		// 登録アプリの ID
+		id                        : 'chrome-profile-1',
+		// Chrome の安定版
+		executablePath            : 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+		// エイリアスのファイル名だけでの一致は使わない
+		allowAliasFileNameFallback: false,
+		// ショートカットの --profile-directory
+		profileDirectory          : 'profile 1',
+		// Local State の表示名。Chrome のウィンドウのタイトルには出ない
+		profileNames              : ['代表'],
+		// ショートカットの AppUserModelID。2026-11-23 に実測したウィンドウの ID と同じ形
+		appUserModelId            : 'Chrome.UserData.Profile1'
+	},
+	{
+		// 登録アプリの ID
+		id                        : 'chrome-profile-2',
+		// Chrome の安定版
+		executablePath            : 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+		// エイリアスのファイル名だけでの一致は使わない
+		allowAliasFileNameFallback: false,
+		// ショートカットの --profile-directory
+		profileDirectory          : 'profile 2',
+		// Local State の表示名
+		profileNames              : ['DT'],
+		// ショートカットの AppUserModelID
+		appUserModelId            : 'Chrome.UserData.Profile2'
+	}
+];
+// Chrome の Profile 1 のウィンドウ。プロファイル指定なしで起動したプロセスに属し、コマンドラインからはプロファイルが分からない
+const chromeProfile1Window = {
+	// プロセス ID
+	pid           : 16,
+	// プロセス名
+	processName   : 'chrome',
+	// Chrome の安定版
+	executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+	// プロファイル指定の無いコマンドライン
+	commandLine   : 'chrome.exe',
+	// プロファイル名を含まないタイトル
+	windowTitle   : '新しいタブ - Google Chrome',
+	// ウィンドウの AppUserModelID。PropVariant を 24 バイトにして読めるようになった値
+	appUserModelId: 'Chrome.UserData.Profile1'
+};
+
+// ウィンドウの ID が読めれば、そのプロファイルの登録だけが起動中になる
+assert.deepEqual(matchRunningAppIds(chromeProfileApps, [chromeProfile1Window]), ['chrome-profile-1']);
+// ID が空（PropVariant が 16 バイトだった頃の値）だと、タイトルにもコマンドラインにも手がかりが無く、どちらも起動中にならない
+assert.deepEqual(matchRunningAppIds(chromeProfileApps, [{ ...chromeProfile1Window, appUserModelId: '' }]), []);
+
+// ウィンドウ列挙スクリプトのバイト列。ファイルは書かない
+const taskbarScriptBytes = readFileSync(path.join(rootDir, 'resources', 'get-taskbar-apps.ps1'));
+
+// Windows PowerShell 5.1 が UTF-8 として読むよう、BOM で始まる
+assert.deepEqual([...taskbarScriptBytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
+// PropVariant を x64 の PROPVARIANT と同じ 24 バイトで確保している。16 バイトだとウィンドウの AppUserModelID を読めない
+assert.match(taskbarScriptBytes.toString('utf8'), /\[StructLayout\(LayoutKind\.Explicit, Size = 24\)\]\s+private struct PropVariant/);
 assert.equal(areSameAppIds(['b', 'a'], ['a', 'b']), true);
 assert.equal(areSameAppIds(['a'], ['a', 'b']), false);
 

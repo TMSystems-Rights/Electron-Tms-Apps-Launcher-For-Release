@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     タスクバーに出ているウィンドウのプロセスを JSON で返す
 
@@ -17,6 +17,8 @@
 .NOTES
     例外:
     - Win32 列挙の型読み込みに失敗したときは、その例外をそのまま送出する
+    文字コード:
+    - BOM 付きの UTF-8 で保存する。Windows PowerShell 5.1 は BOM の無い UTF-8 を ANSI として読み、日本語のコメントの後ろの行が崩れて Add-Type が失敗することがある
 #>
 # 失敗したら止める。Win32 型の読み込み失敗は、その例外のまま出す
 $ErrorActionPreference = 'Stop'
@@ -67,9 +69,20 @@ public static class TmsTaskbarWindows {
         public uint propertyId;
     }
 
-    [StructLayout(LayoutKind.Explicit)]
+    /// <summary>
+    /// IPropertyStore.GetValue が返す値。x64 の PROPVARIANT は 24 バイトなので Size = 24 で確保する
+    /// 16 バイトのままだと GetValue の書き込みが構造体からはみ出し、ウィンドウの AppUserModelID を常に読めない（2026-11-23 に Chrome・Edge のウィンドウで確認）
+    /// </summary>
+    [StructLayout(LayoutKind.Explicit, Size = 24)]
     private struct PropVariant {
+        /// <summary>
+        /// 値の型。31（VT_LPWSTR）のときだけ pointerValue が文字列を指す
+        /// </summary>
         [FieldOffset(0)] public ushort variantType;
+
+        /// <summary>
+        /// 値へのポインタ。読み終えたら PropVariantClear で解放する
+        /// </summary>
         [FieldOffset(8)] public IntPtr pointerValue;
     }
 
