@@ -68,7 +68,12 @@ const processes      = [
 	{ pid: 11, processName: 'firefox', executablePath: 'C:\\Program Files\\Firefox Developer Edition\\firefox.exe', commandLine: 'firefox.exe -no-remote', windowTitle: 'about:debugging - Firefox Developer Edition', appUserModelId: '' }
 ];
 
+// 値だけをクォートした形。ブラウザが作るショートカットの引数
 assert.equal(getProfileDirectory('--profile-directory="Profile 4"'), 'profile 4');
+// 引数全体をクォートした形。Node の spawn が空白を含む引数を渡すときにこうなる
+assert.equal(getProfileDirectory('"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" "--profile-directory=Profile 1"'), 'profile 1');
+// クォートしない形。空白の無いフォルダ名
+assert.equal(getProfileDirectory('msedge.exe --profile-directory=Default'), 'default');
 assert.deepEqual(matchRunningAppIds(registeredApps, processes), ['alias', 'console-title', 'docker', 'edge-profile-2', 'exact', 'firefox-developer', 'pidl', 'teams-alias']);
 assert.deepEqual(
 	matchRunningAppIds(registeredApps, [
@@ -190,6 +195,29 @@ const chromeProfile1Window = {
 assert.deepEqual(matchRunningAppIds(chromeProfileApps, [chromeProfile1Window]), ['chrome-profile-1']);
 // ID が空（PropVariant が 16 バイトだった頃の値）だと、タイトルにもコマンドラインにも手がかりが無く、どちらも起動中にならない
 assert.deepEqual(matchRunningAppIds(chromeProfileApps, [{ ...chromeProfile1Window, appUserModelId: '' }]), []);
+
+// Profile 1 のショートカットで起動した Edge のプロセスに、Profile 4 のウィンドウだけが残った状態。Profile 1 のウィンドウは閉じてある
+const edgeProfile4WindowInProfile1Process = {
+	// プロセス ID
+	pid           : 17,
+	// プロセス名
+	processName   : 'msedge',
+	// Edge の安定版
+	executablePath: 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+	// 最初に起動したときのコマンドライン。後から別のプロファイルのウィンドウを開いても変わらない
+	commandLine   : '"C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe" --profile-directory="Profile 1"',
+	// Profile 4 のウィンドウのタイトル。U+200B は実際の Edge のタイトルにある幅ゼロ空白
+	windowTitle   : '設定 - 職場 - Microsoft\u200b Edge',
+	// Profile 4 のウィンドウの AppUserModelID
+	appUserModelId: 'MSEdge.UserData.Profile4'
+};
+
+// コマンドラインが Profile 1 でも、ウィンドウが Profile 4 なら Profile 4 の登録だけが起動中になる
+assert.deepEqual(matchRunningAppIds(registeredApps, [edgeProfile4WindowInProfile1Process]), ['edge-profile-4']);
+// AppUserModelID が空でも、タイトルのプロファイル名で Profile 4 の登録だけが起動中になる
+assert.deepEqual(matchRunningAppIds(registeredApps, [{ ...edgeProfile4WindowInProfile1Process, appUserModelId: '' }]), ['edge-profile-4']);
+// AppUserModelID もタイトルのプロファイル名も無いと、コマンドラインに Profile 1 があっても起動中にならない
+assert.deepEqual(matchRunningAppIds(registeredApps, [{ ...edgeProfile4WindowInProfile1Process, windowTitle: 'Microsoft\u200b Edge', appUserModelId: '' }]), []);
 
 // ウィンドウ列挙スクリプトのバイト列。ファイルは書かない
 const taskbarScriptBytes = readFileSync(path.join(rootDir, 'resources', 'get-taskbar-apps.ps1'));

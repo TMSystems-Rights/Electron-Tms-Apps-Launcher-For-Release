@@ -16,7 +16,7 @@ export interface ResolvedRegisteredApp {
 	executablePath: string;
 	/** true のとき、WindowsApps のエイリアスはファイル名だけでも一致させてよい */
 	allowAliasFileNameFallback: boolean;
-	/** Chromium 系のプロファイルディレクトリ。該当しない起動は未設定 */
+	/** Chromium 系のプロファイルディレクトリ。小文字。設定があると実行パスでは一致させない。該当しない起動は未設定 */
 	profileDirectory?: string;
 	/** プロファイルの表示名。複数プロファイルを区別する */
 	profileNames?: string[];
@@ -69,14 +69,16 @@ export function isExcludedScriptHost(executablePath: string): boolean {
 
 /**
  * Chromium系のプロファイル識別引数を取得する
+ * 値だけをクォートした `--profile-directory="Profile 1"` と、引数全体をクォートした `"--profile-directory=Profile 1"` の両方を読む
+ * 後者は、Node の spawn が空白を含む引数を渡すときの形
  * @param {string} commandLine 引数またはコマンドライン
- * @returns {string} プロファイルディレクトリ
+ * @returns {string} プロファイルディレクトリ。小文字。指定が無ければ空
  */
 export function getProfileDirectory(commandLine: string): string {
-	// 最初に見つかったプロファイル指定。無ければ空
-	const match = String(commandLine ?? '').match(/--profile-directory(?:=|\s+)(?:"([^"]+)"|([^\s"]+))/i);
+	// 最初に見つかったプロファイル指定。1 番目は引数全体のクォート、2 番目は値のクォート、3 番目はクォートなしの値。指定が無ければ null
+	const match = String(commandLine ?? '').match(/"--profile-directory=([^"]+)"|--profile-directory(?:=|\s+)(?:"([^"]+)"|([^\s"]+))/i);
 
-	return (match?.[1] ?? match?.[2] ?? '').trim().toLowerCase();
+	return (match?.[1] ?? match?.[2] ?? match?.[3] ?? '').trim().toLowerCase();
 }
 
 /**
@@ -298,28 +300,24 @@ function matchesProfileWindowTitle(app: ResolvedRegisteredApp, processInfo: Task
 }
 
 /**
- * 実行パスとプロファイル識別子が一致するか判定する
+ * 実行パスが一致するか判定する
+ * プロファイル指定のある登録は一致させない。Chromium 系は全プロファイルが最初に起動したプロセスで動き、プロセスのコマンドラインからはウィンドウのプロファイルが分からないため
  * @param {ResolvedRegisteredApp} app 登録アプリ
  * @param {TaskbarAppProcess} processInfo タスクバープロセス
- * @returns {boolean} 一致時true
+ * @returns {boolean} 一致時true。プロファイル指定のある登録は常にfalse
  */
 function matchesExecutable(app: ResolvedRegisteredApp, processInfo: TaskbarAppProcess): boolean {
+	// プロファイル指定がある。コマンドラインのプロファイルで判定すると、同じプロセスにある別プロファイルのウィンドウでも一致するため、ウィンドウの AUMID かタイトルに任せる
+	if (app.profileDirectory) {
+		return false;
+	}
+
 	// 比較用のプロセスパス。空なら一致しない
 	const processPath = normalizePathForMatch(processInfo.executablePath);
 	// スクリプトホストを除いた登録パス。空なら比較対象が無い
 	const appPaths    = [app.executablePath].map(normalizePathForMatch).filter((value) => value && !isExcludedScriptHost(value));
 
-	// 登録パスにプロセスパスが含まれない
-	if (!appPaths.includes(processPath)) {
-		return false;
-	}
-
-	// プロファイル指定があり、かつコマンドラインのプロファイルと違う
-	if (app.profileDirectory && getProfileDirectory(processInfo.commandLine) !== app.profileDirectory) {
-		return false;
-	}
-
-	return true;
+	return appPaths.includes(processPath);
 }
 
 /**
@@ -352,7 +350,7 @@ export function matchRunningAppIds(registeredApps: ResolvedRegisteredApp[], proc
 				break;
 			}
 
-			// 実行パスとプロファイルが一致した
+			// プロファイル指定が無く、かつ実行パスが一致した
 			if (matchesExecutable(app, processInfo)) {
 				result.add(app.id);
 				break;
