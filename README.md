@@ -4,6 +4,11 @@
 
 公開配布リポジトリ: [TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release](https://github.com/TMSystems-Rights/Electron-Tms-Apps-Launcher-For-Release)
 
+## v1.9.3 の主な変更
+
+- 起動済みアプリのハイライトで、ブラウザのウィンドウを AppUserModelID で判定できるようにしました。Chrome もプロファイルごとに起動済みを判定できます。
+- Chrome・Edge で、開いていないプロファイルの登録が起動済みになることがある不具合を直しました。
+
 ## v1.9.2 の主な変更
 
 - Electron を 45.1.0 に更新し、同梱 Node.js を 24.22.1 にしました。
